@@ -50,7 +50,7 @@ export async function routeOSRM(
       totalDuration += (route.duration || 0)
     } catch (error) {
       clearTimeout(timeoutId)
-      if (error.name === 'AbortError') {
+      if (error instanceof Error && error.name === 'AbortError') {
         console.warn('OSRM request timeout - skipping route calculation')
       } else {
         console.error('OSRM request error:', error)

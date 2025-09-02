@@ -65,9 +65,10 @@ export default function RouteMapLeaflet({ planner }: { planner?: PlannerInput })
     setDurationHrs(0)
     setDailySegmentLines([])
 
+    let resolved: Array<{ label: string; lat: number; lng: number }> = []
+    
     try {
-
-    const resolved = await resolvePlannerPoints(draft, mode)
+      resolved = await resolvePlannerPoints(draft, mode)
     const extraMarkers: Array<{ label: string; lat: number; lng: number }> = []
     const origin = await geocodeOrigin(draft.global.originCity)
     const toRoute = origin
@@ -124,7 +125,7 @@ export default function RouteMapLeaflet({ planner }: { planner?: PlannerInput })
     } catch (error) {
       console.error('Erro ao calcular rotas:', error)
       // Em caso de erro, pelo menos mostrar os pontos
-      if (resolved) {
+      if (resolved && resolved.length > 0) {
         setPoints(resolved)
       }
     } finally {
