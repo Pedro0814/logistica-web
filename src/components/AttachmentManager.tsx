@@ -36,8 +36,10 @@ export default function AttachmentManager({ plannerId }: AttachmentManagerProps)
   }, [plannerId, getAttachments])
 
   useEffect(() => {
-    loadAttachments()
-  }, [loadAttachments])
+    if (plannerId) {
+      loadAttachments()
+    }
+  }, [plannerId]) // Remover loadAttachments da dependência
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]

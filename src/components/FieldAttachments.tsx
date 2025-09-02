@@ -44,7 +44,7 @@ export default function FieldAttachments({ plannerId, fieldType, className = "" 
     if (plannerId) {
       loadFieldAttachments()
     }
-  }, [plannerId, fieldType, loadFieldAttachments])
+  }, [plannerId, fieldType]) // Remover loadFieldAttachments da dependência
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes'

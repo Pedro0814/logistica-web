@@ -33,9 +33,16 @@ if (hasValidCredentials) {
     storage = getStorage(app)
   } catch (error) {
     console.warn('Firebase initialization failed:', error)
+    // Em caso de erro, não inicializar serviços
+    app = null
+    db = null
+    auth = null
+    storage = null
   }
 } else {
   console.warn('Firebase credentials not found. Using mock services for development.')
+  // Garantir que storage seja null quando não há credenciais
+  storage = null
 }
 
 export { db, auth, storage }

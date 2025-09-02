@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { onAuthStateChanged, type User } from 'firebase/auth'
-import { auth, db } from '@/lib/firebase'
+import { auth, db, storage } from '@/lib/firebase'
 import {
   savePlannerToFirebase,
   loadAllPlannersFromFirebase,
@@ -98,6 +98,9 @@ export function useFirebase() {
   const uploadFile = async (file: File, plannerId: string): Promise<string> => {
     try {
       setError(null)
+      if (!storage) {
+        throw new Error('Firebase Storage não está disponível. Configure as credenciais para usar anexos.')
+      }
       return await uploadAttachment(file, plannerId, user?.uid)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido'
@@ -109,6 +112,10 @@ export function useFirebase() {
   const getAttachments = async (plannerId: string): Promise<any[]> => {
     try {
       setError(null)
+      if (!storage) {
+        console.warn('Firebase Storage não disponível - retornando array vazio')
+        return []
+      }
       return await getAttachmentsForPlanner(plannerId)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido'
@@ -120,6 +127,9 @@ export function useFirebase() {
   const deleteFile = async (attachmentId: string, filePath: string): Promise<boolean> => {
     try {
       setError(null)
+      if (!storage) {
+        throw new Error('Firebase Storage não está disponível. Configure as credenciais para usar anexos.')
+      }
       return await deleteAttachment(attachmentId, filePath)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido'

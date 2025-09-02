@@ -26,6 +26,9 @@ export default function AttachmentButton({
   const [isUploading, setIsUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { uploadFile, error: firebaseError } = useFirebase()
+  
+  // Desabilitar se não há Firebase configurado
+  const isFirebaseAvailable = !firebaseError && plannerId
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -57,6 +60,10 @@ export default function AttachmentButton({
   }
 
   const handleClick = () => {
+    if (!isFirebaseAvailable) {
+      alert('Funcionalidade de anexos não disponível. Configure o Firebase para usar esta funcionalidade.')
+      return
+    }
     fileInputRef.current?.click()
   }
 
@@ -73,9 +80,13 @@ export default function AttachmentButton({
         <button
           type="button"
           onClick={handleClick}
-          disabled={isUploading}
-          className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors duration-200"
-          title={tooltip || "Anexar arquivo"}
+          disabled={isUploading || !isFirebaseAvailable}
+          className={`p-1.5 transition-colors duration-200 ${
+            isFirebaseAvailable 
+              ? 'text-gray-400 hover:text-gray-600 hover:bg-gray-100' 
+              : 'text-gray-300 cursor-not-allowed'
+          }`}
+          title={isFirebaseAvailable ? (tooltip || "Anexar arquivo") : "Firebase não configurado"}
         >
           {isUploading ? (
             <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -100,13 +111,13 @@ export default function AttachmentButton({
         onChange={handleFileChange}
         className="hidden"
       />
-      <Button
-        type="button"
-        variant="outline"
-        onClick={handleClick}
-        disabled={isUploading}
-        className="w-full"
-      >
+              <Button
+          type="button"
+          variant="outline"
+          onClick={handleClick}
+          disabled={isUploading || !isFirebaseAvailable}
+          className={`w-full ${!isFirebaseAvailable ? 'opacity-50 cursor-not-allowed' : ''}`}
+        >
         {isUploading ? (
           <>
             <svg className="w-4 h-4 mr-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">

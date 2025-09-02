@@ -32,7 +32,7 @@ export default function PlannerManager({ onSelectPlanner, onExportPlanner }: Pla
 
   useEffect(() => {
     loadPlanners()
-  }, [loadPlanners])
+  }, []) // Executar apenas uma vez na montagem
 
   const handleEditTitle = (planner: PlannerMetadata) => {
     setEditingId(planner.id)
