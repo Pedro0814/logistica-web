@@ -4,14 +4,17 @@ import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { PlannerInputSchema, type PlannerInput } from '@/schemas/planner'
 import CurrencyInput from './CurrencyInput'
+import AttachmentButton from './AttachmentButton'
+import FieldAttachments from './FieldAttachments'
 import { useState } from 'react'
 
 interface PlannerFormProps {
   initial?: PlannerInput
+  plannerId?: string
   onSubmit: (values: PlannerInput, title: string) => void
 }
 
-export default function PlannerForm({ initial, onSubmit }: PlannerFormProps) {
+export default function PlannerForm({ initial, plannerId, onSubmit }: PlannerFormProps) {
   const [plannerTitle, setPlannerTitle] = useState(initial ? 'Planejamento Existente' : '')
   const [showTitleInput, setShowTitleInput] = useState(!initial)
 
@@ -293,15 +296,24 @@ export default function PlannerForm({ initial, onSubmit }: PlannerFormProps) {
                   </svg>
                   Cidade {cityIndex + 1}
                 </h3>
-                <button
-                  type="button"
-                  onClick={() => removeCity(cityIndex)}
-                  className="text-red-500 hover:text-red-700 transition-colors duration-200"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
+                <div className="flex items-center gap-2">
+                  <AttachmentButton
+                    plannerId={plannerId}
+                    fieldType={`city_${cityIndex}`}
+                    tooltip="Anexar comprovante de passagem, hotel e etc"
+                    variant="full"
+                    className="text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeCity(cityIndex)}
+                    className="text-red-500 hover:text-red-700 transition-colors duration-200"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
               </div>
 
               <div className="grid md:grid-cols-2 gap-4 mb-6">
@@ -315,39 +327,99 @@ export default function PlannerForm({ initial, onSubmit }: PlannerFormProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700">Nome do Hotel</label>
+                  <div className="flex items-center justify-between">
+                    <label className="block text-sm font-semibold text-gray-700">Nome do Hotel</label>
+                    <AttachmentButton
+                      plannerId={plannerId}
+                      fieldType={`hotel_name_${cityIndex}`}
+                      tooltip="Anexar comprovante do hotel"
+                      variant="discrete"
+                    />
+                  </div>
                   <input
                     {...form.register(`itinerary.${cityIndex}.hotelName`)}
                     className="block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
                     placeholder="Nome do hotel"
                   />
+                  {plannerId && (
+                    <FieldAttachments 
+                      plannerId={plannerId} 
+                      fieldType={`hotel_name_${cityIndex}`}
+                      className="mt-1"
+                    />
+                  )}
                 </div>
 
                 <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700">Diária do Hotel</label>
+                  <div className="flex items-center justify-between">
+                    <label className="block text-sm font-semibold text-gray-700">Diária do Hotel</label>
+                    <AttachmentButton
+                      plannerId={plannerId}
+                      fieldType={`hotel_nightly_${cityIndex}`}
+                      tooltip="Anexar comprovante da diária"
+                      variant="discrete"
+                    />
+                  </div>
                   <CurrencyInput
                     value={form.watch(`itinerary.${cityIndex}.hotelNightly`)}
                     onChange={(value) => form.setValue(`itinerary.${cityIndex}.hotelNightly`, value)}
                     placeholder="0,00"
                   />
+                  {plannerId && (
+                    <FieldAttachments 
+                      plannerId={plannerId} 
+                      fieldType={`hotel_nightly_${cityIndex}`}
+                      className="mt-1"
+                    />
+                  )}
                 </div>
 
                 <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700">Transporte Local (dia)</label>
+                  <div className="flex items-center justify-between">
+                    <label className="block text-sm font-semibold text-gray-700">Transporte Local (dia)</label>
+                    <AttachmentButton
+                      plannerId={plannerId}
+                      fieldType={`local_transport_${cityIndex}`}
+                      tooltip="Anexar comprovante do transporte"
+                      variant="discrete"
+                    />
+                  </div>
                   <CurrencyInput
                     value={form.watch(`itinerary.${cityIndex}.localTransportPerDay`)}
                     onChange={(value) => form.setValue(`itinerary.${cityIndex}.localTransportPerDay`, value)}
                     placeholder="0,00"
                   />
+                  {plannerId && (
+                    <FieldAttachments 
+                      plannerId={plannerId} 
+                      fieldType={`local_transport_${cityIndex}`}
+                      className="mt-1"
+                    />
+                  )}
                 </div>
 
                 <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700">Custo Intermunicipal</label>
+                  <div className="flex items-center justify-between">
+                    <label className="block text-sm font-semibold text-gray-700">Custo Intermunicipal</label>
+                    <AttachmentButton
+                      plannerId={plannerId}
+                      fieldType={`intercity_cost_${cityIndex}`}
+                      tooltip="Anexar comprovante da passagem"
+                      variant="discrete"
+                    />
+                  </div>
                   <CurrencyInput
                     value={form.watch(`itinerary.${cityIndex}.intercityCost`) as number || 0}
                     onChange={(value) => form.setValue(`itinerary.${cityIndex}.intercityCost`, value)}
                     placeholder="0,00"
                   />
+                  {plannerId && (
+                    <FieldAttachments 
+                      plannerId={plannerId} 
+                      fieldType={`intercity_cost_${cityIndex}`}
+                      className="mt-1"
+                    />
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -406,12 +478,29 @@ export default function PlannerForm({ initial, onSubmit }: PlannerFormProps) {
         </div>
         <div className="p-8">
           <div className="max-w-md">
-            <CurrencyInput
-              label="Custo de Retorno à Cidade de Origem"
-              value={form.watch('returnTransportCost') ?? 0}
-              onChange={(value) => form.setValue('returnTransportCost', value)}
-              placeholder="0,00"
-            />
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="block text-sm font-semibold text-gray-700">Custo de Retorno à Cidade de Origem</label>
+                <AttachmentButton
+                  plannerId={plannerId}
+                  fieldType="return_transport"
+                  tooltip="Anexo de passagem"
+                  variant="discrete"
+                />
+              </div>
+              <CurrencyInput
+                value={form.watch('returnTransportCost') ?? 0}
+                onChange={(value) => form.setValue('returnTransportCost', value)}
+                placeholder="0,00"
+              />
+              {plannerId && (
+                <FieldAttachments 
+                  plannerId={plannerId} 
+                  fieldType="return_transport"
+                  className="mt-1"
+                />
+              )}
+            </div>
             <p className="text-sm text-gray-500 mt-2">
               Custo estimado para retornar do último destino à cidade de origem
             </p>

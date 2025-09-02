@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useState, useEffect, useMemo } from 'react'
 import { clearPlannerDraft } from '@/utils/storage'
 import { computeSchedule, computeCosts, type Assumptions } from '@/utils/planner'
+import { exportPlanner } from '@/utils/excel'
 import type { PlannerInput, SavedPlanner } from '@/types/planner'
 import type { DayPlan } from '@/types/schedule'
 import dynamic from "next/dynamic";
@@ -345,9 +346,15 @@ export default function SchedulePage() {
                     </div>
                     <div className="mt-6">
                       <SplitButtonExport onExportCSV={() => {
-                        const a = document.createElement('a')
-                        a.href = '#'
-                        a.click()
+                        if (currentPlanner) {
+                          const schedule = computeSchedule(currentPlanner.data, {
+                            dailyWorkingHours: 8,
+                            travelHoursPerLeg: 2
+                          })
+                          exportPlanner(currentPlanner, schedule)
+                        } else {
+                          alert('Nenhum planejamento selecionado para exportar.')
+                        }
                       }} />
                     </div>
                   </div>

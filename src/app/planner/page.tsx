@@ -16,17 +16,20 @@ import { Button } from '@/components/ui/Button'
 export default function PlannerPage() {
   const { savePlanner, error: firebaseError } = useFirebase()
   const [currentPlanner, setCurrentPlanner] = useState<PlannerInput | null>(null)
+  const [currentPlannerId, setCurrentPlannerId] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [showManager, setShowManager] = useState(false)
 
   const handleCreateNew = () => {
     setCurrentPlanner(null)
+    setCurrentPlannerId(null)
     setShowForm(true)
     setShowManager(false)
   }
 
   const handleLoadSample = () => {
     setCurrentPlanner(samplePlanner)
+    setCurrentPlannerId(null) // Sample não tem ID
     setShowForm(true)
     setShowManager(false)
   }
@@ -40,6 +43,7 @@ export default function PlannerPage() {
   const handleSubmit = async (values: PlannerInput, title: string) => {
     try {
       const plannerId = await savePlanner(values, title)
+      setCurrentPlannerId(plannerId) // Armazenar o ID para anexos
       alert(`Planejamento "${title}" salvo com sucesso! ID: ${plannerId}`)
       setShowForm(false)
       setShowManager(true)
@@ -51,6 +55,7 @@ export default function PlannerPage() {
 
   const handleSelectPlanner = (planner: SavedPlanner) => {
     setCurrentPlanner(planner.data)
+    setCurrentPlannerId(planner.metadata.id) // Armazenar o ID para anexos
     setShowForm(true)
     setShowManager(false)
   }
@@ -64,6 +69,7 @@ export default function PlannerPage() {
     setShowForm(false)
     setShowManager(true)
     setCurrentPlanner(null)
+    setCurrentPlannerId(null)
   }
 
   const handleClearDraft = () => {
@@ -136,6 +142,7 @@ export default function PlannerPage() {
                 <div className="relative">
                   <PlannerForm
                     initial={currentPlanner || undefined}
+                    plannerId={currentPlannerId || undefined}
                     onSubmit={handleSubmit}
                   />
                   {/* Sticky actions */}
