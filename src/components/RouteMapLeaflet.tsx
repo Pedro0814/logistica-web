@@ -38,7 +38,8 @@ export default function RouteMapLeaflet({ planner }: { planner?: PlannerInput })
   const [points, setPoints] = useState<Array<{ label: string; lat: number; lng: number }>>([])
   const [ignored, setIgnored] = useState<string[]>([])
   const [route, setRoute] = useState<GeoJSON.LineString | null>(null)
-  const [dailyLines, setDailyLines] = useState<Array<GeoJSON.LineString>>([])
+  const [segmentLines, setSegmentLines] = useState<Array<{ line: GeoJSON.LineString; color: string }>>([])
+  const [dailySegmentLines, setDailySegmentLines] = useState<Array<{ line: GeoJSON.LineString; color: string; dashed?: boolean }>>([])
   const [distanceKm, setDistanceKm] = useState<number>(0)
   const [durationHrs, setDurationHrs] = useState<number>(0)
   const [busy, setBusy] = useState<boolean>(false)
@@ -52,16 +53,17 @@ export default function RouteMapLeaflet({ planner }: { planner?: PlannerInput })
     points.forEach((p) => b.extend([p.lat, p.lng]))
     if (!b.isValid()) return null
     return b
-  }, [points, route])
+  }, [points, route, segmentLines, dailySegmentLines])
 
   async function recalc() {
     if (!draft) return
     setBusy(true)
     setRoute(null)
+    setSegmentLines([])
     setIgnored([])
     setDistanceKm(0)
     setDurationHrs(0)
-    setDailyLines([])
+    setDailySegmentLines([])
 
     const resolved = await resolvePlannerPoints(draft, mode)
     const extraMarkers: Array<{ label: string; lat: number; lng: number }> = []
@@ -75,30 +77,43 @@ export default function RouteMapLeaflet({ planner }: { planner?: PlannerInput })
       return
     }
 
-    const routed = await routeOSRM(toRoute, profile, OSRM_URL)
+    const basePalette = ['#2563eb', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6']
     let baseKm = 0
     let baseHrs = 0
-    if (routed) {
-      setRoute(routed.line)
-      baseKm = routed.distanceKm
-      baseHrs = routed.durationHrs
+    for (let i = 0; i < toRoute.length - 1; i++) {
+      const a = toRoute[i]
+      const b = toRoute[i + 1]
+      const seg = await routeOSRM([a, b], profile, OSRM_URL)
+      if (seg?.line) {
+        const color = basePalette[i % basePalette.length]
+        setSegmentLines((prev) => [...prev, { line: seg.line, color }])
+        baseKm += seg.distanceKm
+        baseHrs += seg.durationHrs
+      }
     }
 
     // Deslocamentos diários hotel ⇄ lojas por cidade
     let extraKm = 0
     let extraHrs = 0
+    const dailyPalette = ['#16a34a', '#0ea5e9', '#d946ef', '#f97316', '#22c55e']
+    let dailyIndex = 0
     for (const c of draft.itinerary) {
       const hotel = await geocodeHotel(c)
       if (!hotel) continue
       const stores = await resolveStoresForCity(c)
       if (stores.length === 0) continue
-      const dl = await routeOSRM([hotel, ...stores, hotel], 'car', OSRM_URL)
-      if (dl?.line) {
-        setDailyLines((prev) => [...prev, dl.line])
-        extraKm += dl.distanceKm
-        extraHrs += dl.durationHrs
-        extraMarkers.push({ label: `Hotel – ${c.city}`, lat: hotel.lat, lng: hotel.lng })
+      const chain = [hotel, ...stores, hotel]
+      for (let i = 0; i < chain.length - 1; i++) {
+        const seg = await routeOSRM([chain[i], chain[i + 1]], 'car', OSRM_URL)
+        if (seg?.line) {
+          const color = dailyPalette[dailyIndex % dailyPalette.length]
+          dailyIndex++
+          setDailySegmentLines((prev) => [...prev, { line: seg.line, color, dashed: true }])
+          extraKm += seg.distanceKm
+          extraHrs += seg.durationHrs
+        }
       }
+      extraMarkers.push({ label: `Hotel – ${c.city}`, lat: hotel.lat, lng: hotel.lng })
     }
 
     setPoints([...resolved, ...extraMarkers])
@@ -175,8 +190,11 @@ export default function RouteMapLeaflet({ planner }: { planner?: PlannerInput })
         {route && (
           <Polyline positions={(route.coordinates as [number, number][])?.map(([lng, lat]) => [lat, lng])} color="#2563eb" weight={4} />
         )}
-        {dailyLines.map((ln, i) => (
-          <Polyline key={`daily-${i}`} positions={(ln.coordinates as [number, number][])?.map(([lng, lat]) => [lat, lng])} pathOptions={{ color: '#10b981', weight: 3, dashArray: '6 6' }} />
+        {segmentLines.map((seg, i) => (
+          <Polyline key={`seg-${i}`} positions={(seg.line.coordinates as [number, number][])?.map(([lng, lat]) => [lat, lng])} pathOptions={{ color: seg.color, weight: 4 }} />
+        ))}
+        {dailySegmentLines.map((seg, i) => (
+          <Polyline key={`dseg-${i}`} positions={(seg.line.coordinates as [number, number][])?.map(([lng, lat]) => [lat, lng])} pathOptions={{ color: seg.color, weight: 3, dashArray: seg.dashed ? '6 6' : undefined }} />
         ))}
         <FitAll bounds={bounds} />
       </MapContainer>
