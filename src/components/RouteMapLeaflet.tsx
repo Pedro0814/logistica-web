@@ -3,7 +3,7 @@
 import { MapContainer, TileLayer, Marker, Popup, Polyline, LayersControl, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import { loadDraft } from '@/utils/storage'
 import type { PlannerInput } from '@/types/planner'
 import { geocodeNominatim, resolvePlannerPoints } from '@/utils/geo_osm'
@@ -53,9 +53,9 @@ export default function RouteMapLeaflet({ planner }: { planner?: PlannerInput })
     points.forEach((p) => b.extend([p.lat, p.lng]))
     if (!b.isValid()) return null
     return b
-  }, [points, route, segmentLines, dailySegmentLines])
+  }, [points, route])
 
-  async function recalc() {
+  const recalc = useCallback(async () => {
     if (!draft) return
     setBusy(true)
     setRoute(null)
@@ -120,9 +120,9 @@ export default function RouteMapLeaflet({ planner }: { planner?: PlannerInput })
     setDistanceKm(baseKm + extraKm)
     setDurationHrs(baseHrs + extraHrs)
     setBusy(false)
-  }
+  }, [draft, mode, profile])
 
-  useEffect(() => { void recalc() }, [mode, profile])
+  useEffect(() => { void recalc() }, [mode, profile, recalc])
 
   return (
     <div className="space-y-3">

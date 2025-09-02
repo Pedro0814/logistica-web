@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useFirebase } from '@/hooks/useFirebase'
 
 interface AttachmentManagerProps {
@@ -23,11 +23,7 @@ export default function AttachmentManager({ plannerId }: AttachmentManagerProps)
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
 
-  useEffect(() => {
-    loadAttachments()
-  }, [plannerId])
-
-  const loadAttachments = async () => {
+  const loadAttachments = useCallback(async () => {
     try {
       setLoading(true)
       const files = await getAttachments(plannerId)
@@ -37,7 +33,11 @@ export default function AttachmentManager({ plannerId }: AttachmentManagerProps)
     } finally {
       setLoading(false)
     }
-  }
+  }, [plannerId, getAttachments])
+
+  useEffect(() => {
+    loadAttachments()
+  }, [loadAttachments])
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]

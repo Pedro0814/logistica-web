@@ -347,11 +347,26 @@ export default function SchedulePage() {
                     <div className="mt-6">
                       <SplitButtonExport onExportCSV={() => {
                         if (currentPlanner) {
-                          const schedule = computeSchedule(currentPlanner.data, {
+                          const schedule = computeSchedule(currentPlanner, {
                             dailyWorkingHours: 8,
                             travelHoursPerLeg: 2
                           })
-                          exportPlanner(currentPlanner, schedule)
+                          // Criar um SavedPlanner temporário para exportação
+                          const tempSavedPlanner: SavedPlanner = {
+                            metadata: {
+                              id: 'temp',
+                              title: plannerTitle,
+                              technicianName: currentPlanner.global.technicianName,
+                              originCity: currentPlanner.global.originCity,
+                              totalCities: currentPlanner.itinerary.length,
+                              totalStores: currentPlanner.itinerary.reduce((sum, city) => sum + city.stores.length, 0),
+                              estimatedDays: Math.ceil(currentPlanner.itinerary.reduce((sum, city) => sum + city.stores.reduce((citySum, store) => citySum + store.approxAssets, 0), 0) / currentPlanner.global.assetsPerDay),
+                              createdAt: new Date().toISOString(),
+                              updatedAt: new Date().toISOString()
+                            },
+                            data: currentPlanner
+                          }
+                          exportPlanner(tempSavedPlanner, schedule)
                         } else {
                           alert('Nenhum planejamento selecionado para exportar.')
                         }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useFirebase } from '@/hooks/useFirebase'
 import { exportPlanner } from '@/utils/excel'
 import type { PlannerMetadata, SavedPlanner } from '@/types/planner'
@@ -19,11 +19,7 @@ export default function PlannerManager({ onSelectPlanner, onExportPlanner }: Pla
   const [editingTitle, setEditingTitle] = useState('')
   const [selectedPlannerId, setSelectedPlannerId] = useState<string | null>(null)
 
-  useEffect(() => {
-    loadPlanners()
-  }, [])
-
-  const loadPlanners = async () => {
+  const loadPlanners = useCallback(async () => {
     try {
       const plannersList = await loadAllPlanners()
       setPlanners(plannersList.sort((a, b) => 
@@ -32,7 +28,11 @@ export default function PlannerManager({ onSelectPlanner, onExportPlanner }: Pla
     } catch (error) {
       console.error('Erro ao carregar planejamentos:', error)
     }
-  }
+  }, [loadAllPlanners])
+
+  useEffect(() => {
+    loadPlanners()
+  }, [loadPlanners])
 
   const handleEditTitle = (planner: PlannerMetadata) => {
     setEditingId(planner.id)

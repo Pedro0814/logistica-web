@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useFirebase } from '@/hooks/useFirebase'
 
 interface FieldAttachmentsProps {
@@ -24,13 +24,7 @@ export default function FieldAttachments({ plannerId, fieldType, className = "" 
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [loading, setLoading] = useState(false)
 
-  useEffect(() => {
-    if (plannerId) {
-      loadFieldAttachments()
-    }
-  }, [plannerId, fieldType])
-
-  const loadFieldAttachments = async () => {
+  const loadFieldAttachments = useCallback(async () => {
     try {
       setLoading(true)
       const allAttachments = await getAttachments(plannerId)
@@ -44,7 +38,13 @@ export default function FieldAttachments({ plannerId, fieldType, className = "" 
     } finally {
       setLoading(false)
     }
-  }
+  }, [plannerId, fieldType, getAttachments])
+
+  useEffect(() => {
+    if (plannerId) {
+      loadFieldAttachments()
+    }
+  }, [plannerId, fieldType, loadFieldAttachments])
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes'
