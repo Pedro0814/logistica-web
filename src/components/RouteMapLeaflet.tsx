@@ -65,6 +65,8 @@ export default function RouteMapLeaflet({ planner }: { planner?: PlannerInput })
     setDurationHrs(0)
     setDailySegmentLines([])
 
+    try {
+
     const resolved = await resolvePlannerPoints(draft, mode)
     const extraMarkers: Array<{ label: string; lat: number; lng: number }> = []
     const origin = await geocodeOrigin(draft.global.originCity)
@@ -116,13 +118,22 @@ export default function RouteMapLeaflet({ planner }: { planner?: PlannerInput })
       extraMarkers.push({ label: `Hotel – ${c.city}`, lat: hotel.lat, lng: hotel.lng })
     }
 
-    setPoints([...resolved, ...extraMarkers])
-    setDistanceKm(baseKm + extraKm)
-    setDurationHrs(baseHrs + extraHrs)
-    setBusy(false)
+      setPoints([...resolved, ...extraMarkers])
+      setDistanceKm(baseKm + extraKm)
+      setDurationHrs(baseHrs + extraHrs)
+    } catch (error) {
+      console.error('Erro ao calcular rotas:', error)
+      // Em caso de erro, pelo menos mostrar os pontos
+      if (resolved) {
+        setPoints(resolved)
+      }
+    } finally {
+      setBusy(false)
+    }
   }, [draft, mode, profile])
 
-  useEffect(() => { void recalc() }, [mode, profile, recalc])
+  // Desabilitar cálculo automático de rotas para evitar timeouts
+  // useEffect(() => { void recalc() }, [mode, profile, recalc])
 
   return (
     <div className="space-y-3">
@@ -150,11 +161,16 @@ export default function RouteMapLeaflet({ planner }: { planner?: PlannerInput })
             <option value="stores">Unidades</option>
           </select>
         </div>
-        <button className="btn-secondary" disabled={busy} onClick={() => void recalc()}>Recalcular</button>
+        <button className="btn-secondary" disabled={busy} onClick={() => void recalc()}>
+          {busy ? 'Calculando...' : 'Recalcular'}
+        </button>
         <div className="text-sm text-background-600">
           {points.length} pontos resolvidos{ignored.length ? `, ${ignored.length} ignorados` : ''}
           {distanceKm ? ` • ${distanceKm.toFixed(1)} km` : ''}
           {durationHrs ? ` • ${durationHrs.toFixed(1)} h` : ''}
+        </div>
+        <div className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded">
+          ⚠️ Cálculo de rotas pode ser lento devido ao serviço OSRM público
         </div>
       </div>
 

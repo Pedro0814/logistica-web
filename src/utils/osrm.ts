@@ -27,16 +27,36 @@ export async function routeOSRM(
     url.searchParams.set('steps', 'false')
     url.searchParams.set('annotations', 'duration,distance')
 
-    const res = await fetch(url.toString())
-    if (!res.ok) continue
-    const data = await res.json()
-    const route = data?.routes?.[0]
-    if (!route?.geometry) continue
-    const line = route.geometry as GeoJSON.LineString
-    const coordsPart = line.coordinates as [number, number][]
-    allCoords.push(...coordsPart)
-    totalDistance += (route.distance || 0)
-    totalDuration += (route.duration || 0)
+    // Adicionar timeout de 10 segundos
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 10000)
+    
+    try {
+      const res = await fetch(url.toString(), { signal: controller.signal })
+      clearTimeout(timeoutId)
+      
+      if (!res.ok) {
+        console.warn(`OSRM API error: ${res.status} ${res.statusText}`)
+        continue
+      }
+      
+            const data = await res.json()
+      const route = data?.routes?.[0]
+      if (!route?.geometry) continue
+      const line = route.geometry as GeoJSON.LineString
+      const coordsPart = line.coordinates as [number, number][]
+      allCoords.push(...coordsPart)
+      totalDistance += (route.distance || 0)
+      totalDuration += (route.duration || 0)
+    } catch (error) {
+      clearTimeout(timeoutId)
+      if (error.name === 'AbortError') {
+        console.warn('OSRM request timeout - skipping route calculation')
+      } else {
+        console.error('OSRM request error:', error)
+      }
+      continue
+    }
   }
 
   if (!allCoords.length) return null
