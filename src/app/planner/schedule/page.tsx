@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useState, useEffect, useMemo } from 'react'
-import { loadPlannerDraft, clearPlannerDraft, loadAllPlanners, loadPlannerById } from '@/utils/storage'
+import { clearPlannerDraft } from '@/utils/storage'
 import { computeSchedule, computeCosts, type Assumptions } from '@/utils/planner'
 import type { PlannerInput, SavedPlanner } from '@/types/planner'
 import type { DayPlan } from '@/types/schedule'
@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/Button'
 import StatBadge from '@/components/StatBadge'
 import SplitButtonExport from '@/components/SplitButtonExport'
 import { CostsPie, DailyBar } from '@/components/Charts'
+import { useFirebase } from '@/hooks/useFirebase'
 
 const RouteMapLeaflet = dynamic(() => import("@/components/RouteMapLeaflet"), { ssr: false });
 
@@ -21,6 +22,7 @@ function formatBR(dateISO: string): string {
 }
 
 export default function SchedulePage() {
+  const { loadAllPlanners, loadPlannerById } = useFirebase()
   const [assumptions, setAssumptions] = useState<Assumptions>({
     dailyWorkingHours: 8,
     travelHoursPerLeg: 2,
@@ -29,25 +31,31 @@ export default function SchedulePage() {
   const [currentPlanner, setCurrentPlanner] = useState<PlannerInput | null>(null)
   const [plannerTitle, setPlannerTitle] = useState<string>('')
   const [showPlannerSelector, setShowPlannerSelector] = useState(false)
+  const [availablePlanners, setAvailablePlanners] = useState<SavedPlanner[] | null>(null)
 
-  // Carregar rascunho ou último planejamento salvo
+  // Carregar último planejamento salvo via Firebase
   useEffect(() => {
-    const draft = loadPlannerDraft<PlannerInput>()
-    if (draft) {
-      setCurrentPlanner(draft)
-      setPlannerTitle('Rascunho Atual')
-    } else {
-      // Tentar carregar o último planejamento salvo
-      const planners = loadAllPlanners()
-      if (planners.planners.length > 0) {
-        const lastPlanner = loadPlannerById(planners.planners[0].id)
-        if (lastPlanner) {
-          setCurrentPlanner(lastPlanner.data)
-          setPlannerTitle(lastPlanner.metadata.title)
+    let mounted = true
+    ;(async () => {
+      try {
+        const metas = await loadAllPlanners()
+        if (!mounted) return
+        if (metas && metas.length > 0) {
+          // assumir o mais recente pelo updatedAt desc
+          const sorted = [...metas].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))
+          const full = await loadPlannerById(sorted[0].id)
+          if (!mounted) return
+          if (full) {
+            setCurrentPlanner(full.data)
+            setPlannerTitle(full.metadata.title)
+          }
         }
+      } catch (e) {
+        // Se Firebase indisponível, manter estado vazio; usuário poderá abrir seletor
       }
-    }
-  }, [])
+    })()
+    return () => { mounted = false }
+  }, [loadAllPlanners, loadPlannerById])
 
   const schedule = useMemo(() => {
     if (!currentPlanner) return null
@@ -400,9 +408,40 @@ export default function SchedulePage() {
 
 // Componente para seleção de planejamentos
 function PlannerSelector({ onSelect, onClose }: { onSelect: (planner: SavedPlanner) => void; onClose: () => void }) {
-  const planners = loadAllPlanners()
+  const { loadAllPlanners, loadPlannerById } = useFirebase()
+  const [metas, setMetas] = useState<Array<{ id: string; title: string; technicianName: string; originCity: string; totalCities: number; totalStores: number }>>([])
+  const [loading, setLoading] = useState(true)
 
-  if (planners.planners.length === 0) {
+  useEffect(() => {
+    let mounted = true
+    ;(async () => {
+      try {
+        const list = await loadAllPlanners()
+        if (!mounted) return
+        setMetas(list.map(m => ({
+          id: m.id,
+          title: m.title,
+          technicianName: m.technicianName,
+          originCity: m.originCity,
+          totalCities: m.totalCities,
+          totalStores: m.totalStores,
+        })))
+      } finally {
+        if (mounted) setLoading(false)
+      }
+    })()
+    return () => { mounted = false }
+  }, [loadAllPlanners])
+
+  if (loading) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-gray-500">Carregando planejamentos...</p>
+      </div>
+    )
+  }
+
+  if (metas.length === 0) {
     return (
       <div className="text-center py-8">
         <p className="text-gray-500 mb-4">Nenhum planejamento salvo encontrado.</p>
@@ -419,25 +458,23 @@ function PlannerSelector({ onSelect, onClose }: { onSelect: (planner: SavedPlann
   return (
     <div className="space-y-4">
       <div className="max-h-96 overflow-y-auto space-y-3">
-        {planners.planners.map((planner) => (
+        {metas.map((m) => (
           <div
-            key={planner.id}
+            key={m.id}
             className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 cursor-pointer"
-            onClick={() => {
-              const fullPlanner = loadPlannerById(planner.id)
-              if (fullPlanner) {
-                onSelect(fullPlanner)
-              }
+            onClick={async () => {
+              const full = await loadPlannerById(m.id)
+              if (full) onSelect(full)
             }}
           >
             <div className="flex items-center justify-between">
               <div className="flex-1">
-                <h3 className="font-semibold text-gray-900">{planner.title}</h3>
+                <h3 className="font-semibold text-gray-900">{m.title}</h3>
                 <p className="text-sm text-gray-600">
-                  {planner.technicianName} • {planner.originCity}
+                  {m.technicianName} • {m.originCity}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
-                  {planner.totalCities} cidades • {planner.totalStores} unidades
+                  {m.totalCities} cidades • {m.totalStores} unidades
                 </p>
               </div>
               <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
