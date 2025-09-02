@@ -7,6 +7,10 @@ import { computeSchedule, computeCosts, type Assumptions } from '@/utils/planner
 import type { PlannerInput, SavedPlanner } from '@/types/planner'
 import type { DayPlan } from '@/types/schedule'
 import dynamic from "next/dynamic";
+import { Button } from '@/components/ui/Button'
+import StatBadge from '@/components/StatBadge'
+import SplitButtonExport from '@/components/SplitButtonExport'
+import { CostsPie, DailyBar } from '@/components/Charts'
 
 const RouteMapLeaflet = dynamic(() => import("@/components/RouteMapLeaflet"), { ssr: false });
 
@@ -84,26 +88,11 @@ export default function SchedulePage() {
             <p className="text-gray-600 mb-8">
               Você precisa criar um plano primeiro para visualizar o cronograma.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link 
-                href="/planner" 
-                className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
-              >
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
-                <span>Criar Plano</span>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Link href="/planner">
+                <Button size="md">Criar Plano</Button>
               </Link>
-              
-              <button
-                onClick={() => setShowPlannerSelector(true)}
-                className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-medium rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
-              >
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                </svg>
-                <span>Carregar Plano Salvo</span>
-              </button>
+              <Button variant="secondary" onClick={() => setShowPlannerSelector(true)}>Carregar Plano Salvo</Button>
             </div>
           </div>
         </div>
@@ -130,26 +119,12 @@ export default function SchedulePage() {
                 )}
               </div>
             </div>
-            <div className="flex items-center space-x-4">
-              <button 
-                onClick={() => setShowPlannerSelector(true)}
-                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                </svg>
-                <span>Trocar Plano</span>
-              </button>
-              
-              <button 
-                onClick={handleClearDraft}
-                className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-                <span>Limpar Rascunho</span>
-              </button>
+            <div className="flex items-center gap-3">
+              <StatBadge label="Dias" value={schedule?.totalDays ?? 0} />
+              <StatBadge label="Bens" value={schedule?.totalAssets ?? 0} />
+              <StatBadge label="Custo" value={`R$ ${(schedule?.totalCosts ?? 0).toFixed(2)}`} />
+              <Button variant="secondary" onClick={() => setShowPlannerSelector(true)}>Trocar Plano</Button>
+              <Button variant="destructive" onClick={handleClearDraft}>Limpar Rascunho</Button>
             </div>
           </div>
         </div>
@@ -230,17 +205,7 @@ export default function SchedulePage() {
                 </div>
               </div>
               <div className="mt-6">
-                <button 
-                  className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-6 py-3 rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
-                  onClick={recalc}
-                >
-                  <div className="flex items-center space-x-2">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    <span>Recalcular</span>
-                  </div>
-                </button>
+                <Button onClick={recalc}>Recalcular</Button>
               </div>
             </div>
           </div>
@@ -331,7 +296,7 @@ export default function SchedulePage() {
             </div>
           </div>
 
-          {/* Costs Summary */}
+          {/* Costs Summary + Charts + Export */}
           <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
             <div className="bg-gradient-to-r from-green-600 to-emerald-600 px-8 py-6">
               <div className="flex items-center space-x-3">
@@ -370,6 +335,13 @@ export default function SchedulePage() {
                         </span>
                       </div>
                     </div>
+                    <div className="mt-6">
+                      <SplitButtonExport onExportCSV={() => {
+                        const a = document.createElement('a')
+                        a.href = '#'
+                        a.click()
+                      }} />
+                    </div>
                   </div>
                   
                   <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-100">
@@ -396,6 +368,15 @@ export default function SchedulePage() {
                         <span className="text-gray-600">Técnico:</span>
                         <span className="font-semibold text-gray-900">R$ {schedule.days.filter(day => day.type !== 'DESCANSO').reduce((sum, day) => sum + day.costs.technician, 0).toFixed(2)}</span>
                       </div>
+                    </div>
+                    <div className="mt-6 grid md:grid-cols-2 gap-4">
+                      <CostsPie data={[
+                        { name: 'Transporte', value: schedule.days.filter(d => d.type !== 'DESCANSO').reduce((s, d) => s + d.costs.transport, 0) },
+                        { name: 'Hospedagem', value: schedule.days.filter(d => d.type !== 'DESCANSO').reduce((s, d) => s + d.costs.lodging, 0) },
+                        { name: 'Alimentação', value: schedule.days.filter(d => d.type !== 'DESCANSO').reduce((s, d) => s + d.costs.perDiem, 0) },
+                        { name: 'Técnico', value: schedule.days.filter(d => d.type !== 'DESCANSO').reduce((s, d) => s + d.costs.technician, 0) },
+                      ]} />
+                      <DailyBar data={schedule.days.filter(d => d.type !== 'DESCANSO').map((d, i) => ({ day: `${i+1}`, custo: d.costs.transport + d.costs.lodging + d.costs.perDiem + d.costs.technician }))} />
                     </div>
                   </div>
                 </div>
