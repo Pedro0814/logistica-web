@@ -30,8 +30,8 @@ function FitAll({ bounds }: { bounds: L.LatLngBounds | null }) {
   return null
 }
 
-export default function RouteMapLeaflet() {
-  const draft = loadDraft<PlannerInput>()
+export default function RouteMapLeaflet({ planner }: { planner?: PlannerInput }) {
+  const draft = planner ?? loadDraft<PlannerInput>()
 
   const [profile, setProfile] = useState<'car' | 'bike' | 'foot'>('car')
   const [mode, setMode] = useState<'cities' | 'stores'>('cities')
@@ -46,8 +46,11 @@ export default function RouteMapLeaflet() {
   const bounds = useMemo(() => {
     if (!points.length && !route) return null
     const b = L.latLngBounds([])
+    if (route?.coordinates && (route.coordinates as [number, number][])?.length) {
+      (route.coordinates as [number, number][]).forEach(([lng, lat]) => b.extend([lat, lng]))
+    }
     points.forEach((p) => b.extend([p.lat, p.lng]))
-    if (route?.coordinates) (route.coordinates as [number, number][]).forEach(([lng, lat]) => b.extend([lat, lng]))
+    if (!b.isValid()) return null
     return b
   }, [points, route])
 
@@ -62,12 +65,10 @@ export default function RouteMapLeaflet() {
 
     const resolved = await resolvePlannerPoints(draft, mode)
     const extraMarkers: Array<{ label: string; lat: number; lng: number }> = []
-    const toRoute = [
-      // origin
-      ...(await geocodeOrigin(draft.global.originCity) ?? []),
-      ...resolved.map(({ lat, lng }) => ({ lat, lng })),
-      ...(await geocodeOrigin(draft.global.originCity) ?? []),
-    ]
+    const origin = await geocodeOrigin(draft.global.originCity)
+    const toRoute = origin
+      ? [origin[0], ...resolved.map(({ lat, lng }) => ({ lat, lng })), origin[0]]
+      : resolved.map(({ lat, lng }) => ({ lat, lng }))
 
     if (toRoute.length < 2) {
       setBusy(false)
@@ -106,7 +107,7 @@ export default function RouteMapLeaflet() {
     setBusy(false)
   }
 
-  useEffect(() => { void recalc() }, [])
+  useEffect(() => { void recalc() }, [mode, profile])
 
   return (
     <div className="space-y-3">
@@ -131,7 +132,7 @@ export default function RouteMapLeaflet() {
           <label className="label">Rota por</label>
           <select className="input" value={mode} onChange={(e) => setMode(e.target.value as any)}>
             <option value="cities">Cidades</option>
-            <option value="stores">Lojas</option>
+            <option value="stores">Unidades</option>
           </select>
         </div>
         <button className="btn-secondary" disabled={busy} onClick={() => void recalc()}>Recalcular</button>
@@ -196,11 +197,10 @@ async function geocodeHotel(city: { hotelName?: string; city: string }) {
   return await geocodeNominatim(city.city)
 }
 
-async function resolveStoresForCity(city: { stores: Array<{ addressLine: string; lat?: number; lng?: number }>; city: string }) {
+async function resolveStoresForCity(city: { stores: Array<{ addressLine: string }>; city: string }) {
   const pts: Array<{ lat: number; lng: number }> = []
   for (const s of city.stores) {
-    if (typeof s.lat === 'number' && typeof s.lng === 'number') pts.push({ lat: s.lat, lng: s.lng })
-    else if (s.addressLine) {
+    if (s.addressLine) {
       const g = await geocodeNominatim(s.addressLine)
       if (g) pts.push(g)
     }

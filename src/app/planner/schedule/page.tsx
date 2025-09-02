@@ -169,7 +169,7 @@ export default function SchedulePage() {
               </div>
             </div>
             <div className="p-6">
-              <RouteMapLeaflet key={recalcKey} />
+              <RouteMapLeaflet key={recalcKey} planner={currentPlanner || undefined} />
             </div>
           </div>
 

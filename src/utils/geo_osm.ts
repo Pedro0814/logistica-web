@@ -50,9 +50,7 @@ export async function resolvePlannerPoints(
   if (mode === 'stores') {
     for (const c of input.itinerary) {
       for (const s of c.stores) {
-        if (typeof s.lat === 'number' && typeof s.lng === 'number') {
-          push(`${c.city} - ${s.name}`, s.lat, s.lng)
-        } else if (s.addressLine) {
+        if (s.addressLine) {
           const g = await geocodeNominatim(s.addressLine)
           if (g) push(`${c.city} - ${s.name}`, g.lat, g.lng)
         }
@@ -60,12 +58,8 @@ export async function resolvePlannerPoints(
     }
   } else {
     for (const c of input.itinerary) {
-      const first = c.stores.find((s) => typeof s.lat === 'number' && typeof s.lng === 'number')
-      if (first) push(`${c.city}`, first.lat!, first.lng!)
-      else {
-        const g = await geocodeNominatim(c.city)
-        if (g) push(`${c.city}`, g.lat, g.lng)
-      }
+      const g = await geocodeNominatim(c.city)
+      if (g) push(`${c.city}`, g.lat, g.lng)
     }
   }
 
