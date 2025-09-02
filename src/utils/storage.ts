@@ -3,8 +3,10 @@ import type { PlannerInput, SavedPlanner, PlannerMetadata, PlannerList } from '@
 const STORAGE_KEY = 'inventory_route_planner_beta__planners'
 const DRAFT_KEY = 'inventory_route_planner_beta__plannerDraft'
 
-// Funções para gerenciar múltiplos planejamentos
-export function savePlanner(planner: PlannerInput, title?: string): string {
+// Funções para gerenciar múltiplos planejamentos (legado / fallback local)
+// Observação: A base do app passou a usar a API de Draft (saveDraft/loadDraft/clearDraft).
+// Estas funções de múltiplos planejamentos continuam disponíveis como fallback/local apenas.
+export function savePlannerRecord(planner: PlannerInput, title?: string): string {
   const planners = loadAllPlanners()
   
   // Gerar ID único
@@ -130,4 +132,28 @@ export function clearAllPlanners(): void {
   localStorage.removeItem(DRAFT_KEY)
 }
 
+
+// ======================================
+// API PADRÃO: Draft (utilizada pelo app)
+// ======================================
+// Toda a base do app utiliza os métodos abaixo.
+// Mantemos aliases com nomes antigos para compatibilidade.
+
+export function saveDraft(data: PlannerInput): void {
+  savePlannerDraft(data)
+}
+
+export function loadDraft<T = PlannerInput>(): T | null {
+  return loadPlannerDraft<T>()
+}
+
+export function clearDraft(): void {
+  clearPlannerDraft()
+}
+
+// Aliases de compatibilidade (código legado)
+// Atenção: os aliases abaixo referem-se ao Draft, e não ao sistema de múltiplos planejamentos.
+export const savePlanner = saveDraft
+export const loadPlanner = loadDraft
+export const clearPlanner = clearDraft
 

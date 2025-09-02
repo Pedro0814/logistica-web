@@ -10,6 +10,7 @@ interface AttachmentManagerProps {
 interface Attachment {
   id: string
   fileName: string
+  filePath: string
   fileSize: number
   mimeType: string
   downloadURL: string

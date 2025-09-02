@@ -375,7 +375,7 @@ export default function PlannerForm({ initial, onSubmit }: PlannerFormProps) {
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Nenhuma Cidade Adicionada</h3>
               <p className="text-gray-600 mb-4">
-                Clique em "Adicionar Cidade" para começar a definir seu itinerário.
+                Clique em {"\""}Adicionar Cidade{"\""} para começar a definir seu itinerário.
               </p>
               <button
                 type="button"

@@ -4,7 +4,7 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline, LayersControl, useMap
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
 import { useEffect, useMemo, useState } from 'react'
-import { loadPlanner } from '@/utils/storage'
+import { loadDraft } from '@/utils/storage'
 import type { PlannerInput } from '@/types/planner'
 import { geocodeNominatim, resolvePlannerPoints } from '@/utils/geo_osm'
 import { routeOSRM } from '@/utils/osrm'
@@ -31,7 +31,7 @@ function FitAll({ bounds }: { bounds: L.LatLngBounds | null }) {
 }
 
 export default function RouteMapLeaflet() {
-  const draft = loadPlanner<PlannerInput>()
+  const draft = loadDraft<PlannerInput>()
 
   const [profile, setProfile] = useState<'car' | 'bike' | 'foot'>('car')
   const [mode, setMode] = useState<'cities' | 'stores'>('cities')

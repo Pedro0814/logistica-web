@@ -2,7 +2,7 @@
 
 import { Loader } from '@googlemaps/js-api-loader'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { loadPlanner } from '@/utils/storage'
+import { loadDraft } from '@/utils/storage'
 import type { PlannerInput, Store } from '@/types/planner'
 
 type MapType = google.maps.MapTypeId | 'roadmap' | 'satellite'
@@ -33,8 +33,8 @@ export default function RouteMap() {
 
   // Load plan on mount + storage updates
   useEffect(() => {
-    setDraft(loadPlanner<PlannerInput>())
-    const handler = () => setDraft(loadPlanner<PlannerInput>())
+    setDraft(loadDraft<PlannerInput>())
+    const handler = () => setDraft(loadDraft<PlannerInput>())
     window.addEventListener('storage', handler)
     return () => window.removeEventListener('storage', handler)
   }, [])
