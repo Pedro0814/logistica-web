@@ -1,4 +1,4 @@
-import type { SavedPlanner, DayPlan } from '@/types/planner'
+import type { SavedPlanner } from '@/types/planner'
 import type { ComputedPlan } from '@/types/schedule'
 
 // Função para converter dados para CSV (formato que Excel pode abrir)
