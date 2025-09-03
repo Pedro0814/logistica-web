@@ -96,7 +96,7 @@ export function exportPlannerToCSV(planner: SavedPlanner, schedule?: ComputedPla
       'Bens Processados',
       'Custo Transporte',
       'Custo Hospedagem',
-      'Custo Alimentação',
+              'Custo Diária (Refeições)',
       'Custo Técnico'
     ])
 

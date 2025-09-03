@@ -7,6 +7,11 @@ import CurrencyInput from './CurrencyInput'
 import AttachmentButton from './AttachmentButton'
 import FieldAttachments from './FieldAttachments'
 import { useState } from 'react'
+import Stepper, { type Step } from './Stepper'
+import StepCard from './StepCard'
+import StepFooter from './StepFooter'
+import OperationTypeToggle from './OperationTypeToggle'
+import OperationBanner from './OperationBanner'
 
 interface PlannerFormProps {
   initial?: PlannerInput
@@ -14,9 +19,37 @@ interface PlannerFormProps {
   onSubmit: (values: PlannerInput, title: string) => void
 }
 
+const STEPS: Step[] = [
+  {
+    id: 'operation-type',
+    title: 'Tipo de Operação',
+    description: 'Regional vs Viagem',
+    status: 'current'
+  },
+  {
+    id: 'global-params',
+    title: 'Parâmetros Globais',
+    description: 'Configurações base',
+    status: 'upcoming'
+  },
+  {
+    id: 'itinerary',
+    title: 'Itinerário e Unidades',
+    description: 'Cidades e lojas',
+    status: 'upcoming'
+  },
+  {
+    id: 'review',
+    title: 'Revisão',
+    description: 'Gerar cronograma',
+    status: 'upcoming'
+  }
+]
+
 export default function PlannerForm({ initial, plannerId, onSubmit }: PlannerFormProps) {
   const [plannerTitle, setPlannerTitle] = useState(initial ? 'Planejamento Existente' : '')
   const [showTitleInput, setShowTitleInput] = useState(!initial)
+  const [currentStep, setCurrentStep] = useState(0)
 
   const form = useForm<PlannerInput>({
     resolver: zodResolver(PlannerInputSchema),
@@ -46,6 +79,9 @@ export default function PlannerForm({ initial, plannerId, onSubmit }: PlannerFor
     control: form.control,
     name: 'itinerary',
   })
+
+  const operationType = form.watch('global.operationType')
+  const isRegional = operationType === 'regional'
 
   const handleSubmit = (values: PlannerInput) => {
     if (!plannerTitle.trim()) {
@@ -91,58 +127,117 @@ export default function PlannerForm({ initial, plannerId, onSubmit }: PlannerFor
     form.setValue(`itinerary.${cityIndex}.stores`, newStores)
   }
 
+  const nextStep = () => {
+    if (currentStep < STEPS.length - 1) {
+      setCurrentStep(currentStep + 1)
+    } else {
+      form.handleSubmit(handleSubmit)()
+    }
+  }
+
+  const previousStep = () => {
+    if (currentStep > 0) {
+      setCurrentStep(currentStep - 1)
+    }
+  }
+
+  const canGoNext = (): boolean => {
+    switch (currentStep) {
+      case 0: // Tipo de Operação
+        return true
+      case 1: // Parâmetros Globais
+        const technicianName = form.watch('global.technicianName')
+        const originCity = form.watch('global.originCity')
+        return Boolean(technicianName && originCity)
+      case 2: // Itinerário
+        return itineraryFields.length > 0 && itineraryFields.every((_, index) => {
+          const city = form.watch(`itinerary.${index}`)
+          return Boolean(city?.city && city?.stores?.length > 0)
+        })
+      case 3: // Revisão
+        return true
+      default:
+        return false
+    }
+  }
+
+  const canGoPrevious = () => currentStep > 0
+
+  const updateStepStatus = (): Step[] => {
+    return STEPS.map((step, index) => ({
+      ...step,
+      status: (index < currentStep ? 'completed' : index === currentStep ? 'current' : 'upcoming') as 'upcoming' | 'current' | 'completed'
+    }))
+  }
+
+  const handleSaveDraft = () => {
+    // Implementar salvamento de rascunho
+    console.log('Salvando rascunho...')
+  }
+
   return (
-    <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8">
+    <div className="space-y-8 pb-24">
+      {/* Banner de Tipo de Operação */}
+      <OperationBanner operationType={operationType} />
+
+      {/* Stepper */}
+      <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
+        <Stepper 
+          steps={updateStepStatus()} 
+          currentStep={currentStep}
+          onStepClick={setCurrentStep}
+        />
+      </div>
+
       {/* Título do Planejamento */}
       {showTitleInput && (
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-          <div className="bg-gradient-to-r from-purple-600 to-pink-600 px-8 py-6">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
-              </div>
-              <h2 className="text-2xl font-bold text-white">Título do Planejamento</h2>
+        <StepCard
+          title="Título do Planejamento"
+          description="Identifique seu planejamento"
+          helpText="Dê um nome descritivo para facilitar a identificação futura"
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Nome do Planejamento
+              </label>
+              <input
+                type="text"
+                value={plannerTitle}
+                onChange={(e) => setPlannerTitle(e.target.value)}
+                placeholder="Ex: Inventário Região Sul - Janeiro 2025"
+                className="block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200"
+                required
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                Dê um nome descritivo para facilitar a identificação futura
+              </p>
             </div>
           </div>
-          <div className="p-8">
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Nome do Planejamento
-                </label>
-                <input
-                  type="text"
-                  value={plannerTitle}
-                  onChange={(e) => setPlannerTitle(e.target.value)}
-                  placeholder="Ex: Inventário Região Sul - Janeiro 2025"
-                  className="block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200"
-                  required
-                />
-                <p className="text-sm text-gray-500 mt-1">
-                  Dê um nome descritivo para facilitar a identificação futura
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
+        </StepCard>
       )}
 
-      {/* Global Parameters */}
-      <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-6">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-            </div>
-            <h2 className="text-2xl font-bold text-white">Parâmetros Globais</h2>
-          </div>
-        </div>
-        <div className="p-8 space-y-6">
+      {/* Etapa 1: Tipo de Operação */}
+      <StepCard
+        title="Tipo de Operação"
+        description="Escolha entre operação regional ou com viagem"
+        helpText="A escolha afeta quais campos e custos serão considerados no planejamento"
+        isActive={currentStep === 0}
+      >
+        <OperationTypeToggle
+          value={operationType}
+          onChange={(value) => form.setValue('global.operationType', value)}
+        />
+      </StepCard>
+
+      {/* Etapa 2: Parâmetros Globais */}
+      <StepCard
+        title="Parâmetros Globais"
+        description="Configurações base do planejamento"
+        helpText="Configure os parâmetros que se aplicam a todo o planejamento"
+        isActive={currentStep === 1}
+      >
+        <div className="space-y-6">
           <div className="grid md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <label className="block text-sm font-semibold text-gray-700">Nome do Técnico</label>
@@ -224,31 +319,6 @@ export default function PlannerForm({ initial, plannerId, onSubmit }: PlannerFor
             </div>
           </div>
 
-          {/* Tipo de Operação */}
-          <div className="border-t border-gray-200 pt-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-3">Tipo de Operação</h3>
-            <div className="flex items-center gap-4">
-              <label className="inline-flex items-center gap-2">
-                <input
-                  type="radio"
-                  value="travel"
-                  checked={form.watch('global.operationType') !== 'regional'}
-                  onChange={() => form.setValue('global.operationType', 'travel')}
-                />
-                <span>Operação com viagem</span>
-              </label>
-              <label className="inline-flex items-center gap-2">
-                <input
-                  type="radio"
-                  value="regional"
-                  checked={form.watch('global.operationType') === 'regional'}
-                  onChange={() => form.setValue('global.operationType', 'regional')}
-                />
-                <span>Operação regional</span>
-              </label>
-            </div>
-          </div>
-
           {/* Diária (Alimentação e Hidratação) */}
           <div className="border-t border-gray-200 pt-6">
             <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
@@ -257,20 +327,25 @@ export default function PlannerForm({ initial, plannerId, onSubmit }: PlannerFor
               </svg>
               Diária (Alimentação e Hidratação)
             </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Ajuste valores usados por dia de trabalho. Em operação regional, apenas itens marcados serão considerados.
+            </p>
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
               <CurrencyInput
                 label="Café da Manhã"
                 value={form.watch('global.perDiem.breakfast')}
                 onChange={(value) => form.setValue('global.perDiem.breakfast', value)}
                 placeholder="0,00"
+                disabled={isRegional}
               />
+              
               {/* Em operação regional, almoço e água se tornam opcionais */}
-              {form.watch('global.operationType') === 'regional' && (
+              {isRegional && (
                 <div className="col-span-1 flex items-center gap-2">
                   <input
                     type="checkbox"
-                    checked={form.watch('global.regionalOptions.lunchEnabled')}
-                    onChange={(e) => form.setValue('global.regionalOptions.lunchEnabled', e.target.checked)}
+                    checked={!!form.watch('global.regionalOptions.lunchEnabled')}
+                    onChange={(e) => form.setValue('global.regionalOptions.lunchEnabled', !!e.target.checked)}
                   />
                   <span className="text-sm">Incluir Almoço</span>
                 </div>
@@ -280,21 +355,21 @@ export default function PlannerForm({ initial, plannerId, onSubmit }: PlannerFor
                 value={form.watch('global.perDiem.lunch')}
                 onChange={(value) => form.setValue('global.perDiem.lunch', value)}
                 placeholder="0,00"
-                disabled={form.watch('global.operationType') === 'regional' && !form.watch('global.regionalOptions.lunchEnabled')}
+                disabled={isRegional && !form.watch('global.regionalOptions.lunchEnabled')}
               />
               <CurrencyInput
                 label="Jantar"
                 value={form.watch('global.perDiem.dinner')}
                 onChange={(value) => form.setValue('global.perDiem.dinner', value)}
                 placeholder="0,00"
-                disabled={form.watch('global.operationType') === 'regional'}
+                disabled={isRegional}
               />
-              {form.watch('global.operationType') === 'regional' && (
+              {isRegional && (
                 <div className="col-span-1 flex items-center gap-2">
                   <input
                     type="checkbox"
-                    checked={form.watch('global.regionalOptions.waterEnabled')}
-                    onChange={(e) => form.setValue('global.regionalOptions.waterEnabled', e.target.checked)}
+                    checked={!!form.watch('global.regionalOptions.waterEnabled')}
+                    onChange={(e) => form.setValue('global.regionalOptions.waterEnabled', !!e.target.checked)}
                   />
                   <span className="text-sm">Incluir Água</span>
                 </div>
@@ -304,29 +379,41 @@ export default function PlannerForm({ initial, plannerId, onSubmit }: PlannerFor
                 value={form.watch('global.perDiem.water')}
                 onChange={(value) => form.setValue('global.perDiem.water', value)}
                 placeholder="0,00"
-                disabled={form.watch('global.operationType') === 'regional' && !form.watch('global.regionalOptions.waterEnabled')}
+                disabled={isRegional && !form.watch('global.regionalOptions.waterEnabled')}
               />
             </div>
           </div>
         </div>
-      </div>
+      </StepCard>
 
-      {/* Itinerary Section */}
-      <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-        <div className="bg-gradient-to-r from-green-600 to-emerald-600 px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-1.447-.894L15 4m0 13V4m0 0L9 7" />
+      {/* Etapa 3: Itinerário e Unidades */}
+      <StepCard
+        title="Itinerário e Unidades"
+        description="Configure cidades, unidades e custos"
+        helpText="Adicione as cidades e unidades que serão visitadas, com seus respectivos custos"
+        isActive={currentStep === 2}
+      >
+        <div className="space-y-6">
+          {isRegional && (
+            <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+              <div className="flex items-center space-x-3">
+                <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
+                <div className="text-sm text-green-800">
+                  <strong>Operação Regional:</strong> Em modo regional, o técnico trabalha apenas em sua cidade de origem. 
+                  Adicione unidades locais sem necessidade de hotéis ou deslocamentos intermunicipais.
+                </div>
               </div>
-              <h2 className="text-2xl font-bold text-white">Itinerário</h2>
             </div>
+          )}
+
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-800">Cidades e Unidades</h3>
             <button
               type="button"
               onClick={addCity}
-              className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2"
+              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -334,19 +421,17 @@ export default function PlannerForm({ initial, plannerId, onSubmit }: PlannerFor
               <span>Adicionar Cidade</span>
             </button>
           </div>
-        </div>
 
-        <div className="p-8 space-y-6">
           {itineraryFields.map((field, cityIndex) => (
             <div key={field.id} className="border border-gray-200 rounded-xl p-6 bg-gray-50">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-800 flex items-center">
+                <h4 className="text-lg font-semibold text-gray-800 flex items-center">
                   <svg className="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
                   Cidade {cityIndex + 1}
-                </h3>
+                </h4>
                 <div className="flex items-center gap-2">
                   <AttachmentButton
                     plannerId={plannerId}
@@ -374,59 +459,87 @@ export default function PlannerForm({ initial, plannerId, onSubmit }: PlannerFor
                     {...form.register(`itinerary.${cityIndex}.city`)}
                     className="block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
                     placeholder="Ex: Campinas, SP"
+                    disabled={isRegional && cityIndex === 0}
                   />
+                  {isRegional && cityIndex === 0 && (
+                    <p className="text-xs text-green-600">Cidade de origem (não pode ser alterada em operação regional)</p>
+                  )}
                 </div>
 
-                {form.watch('global.operationType') !== 'regional' && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="block text-sm font-semibold text-gray-700">Nome do Hotel</label>
-                      <AttachmentButton
-                        plannerId={plannerId}
-                        fieldType={`hotel_name_${cityIndex}`}
-                        tooltip="Anexar comprovante do hotel"
-                        variant="discrete"
+                {!isRegional && (
+                  <>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-sm font-semibold text-gray-700">Nome do Hotel</label>
+                        <AttachmentButton
+                          plannerId={plannerId}
+                          fieldType={`hotel_name_${cityIndex}`}
+                          tooltip="Anexar comprovante do hotel"
+                          variant="discrete"
+                        />
+                      </div>
+                      <input
+                        {...form.register(`itinerary.${cityIndex}.hotelName`)}
+                        className="block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
+                        placeholder="Nome do hotel"
                       />
+                      {plannerId && (
+                        <FieldAttachments 
+                          plannerId={plannerId} 
+                          fieldType={`hotel_name_${cityIndex}`}
+                          className="mt-1"
+                        />
+                      )}
                     </div>
-                    <input
-                      {...form.register(`itinerary.${cityIndex}.hotelName`)}
-                      className="block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
-                      placeholder="Nome do hotel"
-                    />
-                    {plannerId && (
-                      <FieldAttachments 
-                        plannerId={plannerId} 
-                        fieldType={`hotel_name_${cityIndex}`}
-                        className="mt-1"
-                      />
-                    )}
-                  </div>
-                )}
 
-                {form.watch('global.operationType') !== 'regional' && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="block text-sm font-semibold text-gray-700">Diária do Hotel</label>
-                      <AttachmentButton
-                        plannerId={plannerId}
-                        fieldType={`hotel_nightly_${cityIndex}`}
-                        tooltip="Anexar comprovante da diária"
-                        variant="discrete"
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-sm font-semibold text-gray-700">Diária do Hotel</label>
+                        <AttachmentButton
+                          plannerId={plannerId}
+                          fieldType={`hotel_nightly_${cityIndex}`}
+                          tooltip="Anexar comprovante da diária"
+                          variant="discrete"
+                        />
+                      </div>
+                      <CurrencyInput
+                        value={form.watch(`itinerary.${cityIndex}.hotelNightly`)}
+                        onChange={(value) => form.setValue(`itinerary.${cityIndex}.hotelNightly`, value)}
+                        placeholder="0,00"
                       />
+                      {plannerId && (
+                        <FieldAttachments 
+                          plannerId={plannerId} 
+                          fieldType={`hotel_nightly_${cityIndex}`}
+                          className="mt-1"
+                        />
+                      )}
                     </div>
-                    <CurrencyInput
-                      value={form.watch(`itinerary.${cityIndex}.hotelNightly`)}
-                      onChange={(value) => form.setValue(`itinerary.${cityIndex}.hotelNightly`, value)}
-                      placeholder="0,00"
-                    />
-                    {plannerId && (
-                      <FieldAttachments 
-                        plannerId={plannerId} 
-                        fieldType={`hotel_nightly_${cityIndex}`}
-                        className="mt-1"
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-sm font-semibold text-gray-700">Custo Intermunicipal</label>
+                        <AttachmentButton
+                          plannerId={plannerId}
+                          fieldType={`intercity_cost_${cityIndex}`}
+                          tooltip="Anexar comprovante da passagem"
+                          variant="discrete"
+                        />
+                      </div>
+                      <CurrencyInput
+                        value={form.watch(`itinerary.${cityIndex}.intercityCost`) as number || 0}
+                        onChange={(value) => form.setValue(`itinerary.${cityIndex}.intercityCost`, value)}
+                        placeholder="0,00"
                       />
-                    )}
-                  </div>
+                      {plannerId && (
+                        <FieldAttachments 
+                          plannerId={plannerId} 
+                          fieldType={`intercity_cost_${cityIndex}`}
+                          className="mt-1"
+                        />
+                      )}
+                    </div>
+                  </>
                 )}
 
                 <div className="space-y-2">
@@ -453,40 +566,16 @@ export default function PlannerForm({ initial, plannerId, onSubmit }: PlannerFor
                   )}
                 </div>
 
-                {form.watch('global.operationType') !== 'regional' && (
+                {!isRegional && (
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="block text-sm font-semibold text-gray-700">Custo Intermunicipal</label>
-                      <AttachmentButton
-                        plannerId={plannerId}
-                        fieldType={`intercity_cost_${cityIndex}`}
-                        tooltip="Anexar comprovante da passagem"
-                        variant="discrete"
-                      />
-                    </div>
-                    <CurrencyInput
-                      value={form.watch(`itinerary.${cityIndex}.intercityCost`) as number || 0}
-                      onChange={(value) => form.setValue(`itinerary.${cityIndex}.intercityCost`, value)}
-                      placeholder="0,00"
+                    <label className="block text-sm font-semibold text-gray-700">Nota de Transporte</label>
+                    <input
+                      {...form.register(`itinerary.${cityIndex}.arrivalTransportNote`)}
+                      className="block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
+                      placeholder="Voo, ônibus, etc."
                     />
-                    {plannerId && (
-                      <FieldAttachments 
-                        plannerId={plannerId} 
-                        fieldType={`intercity_cost_${cityIndex}`}
-                        className="mt-1"
-                      />
-                    )}
                   </div>
                 )}
-
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700">Nota de Transporte</label>
-                  <input
-                    {...form.register(`itinerary.${cityIndex}.arrivalTransportNote`)}
-                    className="block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
-                    placeholder="Voo, ônibus, etc."
-                  />
-                </div>
               </div>
 
               {/* Stores Editor */}
@@ -519,67 +608,122 @@ export default function PlannerForm({ initial, plannerId, onSubmit }: PlannerFor
             </div>
           )}
         </div>
-      </div>
+      </StepCard>
 
-      {/* Return Transport Cost */}
-      {form.watch('global.operationType') !== 'regional' && (
-      <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-        <div className="bg-gradient-to-r from-purple-600 to-pink-600 px-8 py-6">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-1.447-.894L15 4m0 13V4m0 0L9 7" />
-              </svg>
-            </div>
-            <h2 className="text-2xl font-bold text-white">Custo de Retorno</h2>
-          </div>
-        </div>
-        <div className="p-8">
-          <div className="max-w-md">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="block text-sm font-semibold text-gray-700">Custo de Retorno à Cidade de Origem</label>
-                <AttachmentButton
-                  plannerId={plannerId}
-                  fieldType="return_transport"
-                  tooltip="Anexo de passagem"
-                  variant="discrete"
-                />
+      {/* Etapa 4: Revisão */}
+      <StepCard
+        title="Revisão e Geração"
+        description="Confirme os dados e gere o cronograma"
+        helpText="Revise todas as informações antes de gerar o cronograma final"
+        isActive={currentStep === 3}
+      >
+        <div className="grid md:grid-cols-2 gap-8">
+          {/* Resumo do Cronograma */}
+          <div className="space-y-4">
+            <h4 className="text-lg font-semibold text-gray-800">Resumo do Cronograma</h4>
+            <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Total de Cidades:</span>
+                <span className="font-semibold">{itineraryFields.length}</span>
               </div>
-              <CurrencyInput
-                value={form.watch('returnTransportCost') ?? 0}
-                onChange={(value) => form.setValue('returnTransportCost', value)}
-                placeholder="0,00"
-              />
-              {plannerId && (
-                <FieldAttachments 
-                  plannerId={plannerId} 
-                  fieldType="return_transport"
-                  className="mt-1"
-                />
+              <div className="flex justify-between">
+                <span className="text-gray-600">Total de Unidades:</span>
+                <span className="font-semibold">
+                  {itineraryFields.reduce((sum, _, index) => {
+                    const stores = form.watch(`itinerary.${index}.stores`)
+                    return sum + (stores?.length || 0)
+                  }, 0)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Total de Bens:</span>
+                <span className="font-semibold">
+                  {itineraryFields.reduce((sum, _, cityIndex) => {
+                    const stores = form.watch(`itinerary.${cityIndex}.stores`)
+                    return sum + (stores?.reduce((citySum, store) => citySum + (store.approxAssets || 0), 0) || 0)
+                  }, 0)}
+                </span>
+              </div>
+              {!isRegional && (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Dias de Viagem:</span>
+                    <span className="font-semibold">{itineraryFields.length + 1}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Dias de Retorno:</span>
+                    <span className="font-semibold">1</span>
+                  </div>
+                </>
               )}
             </div>
-            <p className="text-sm text-gray-500 mt-2">
-              Custo estimado para retornar do último destino à cidade de origem
-            </p>
+          </div>
+
+          {/* Resumo de Custos */}
+          <div className="space-y-4">
+            <h4 className="text-lg font-semibold text-gray-800">Resumo de Custos</h4>
+            <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Diária (Refeições):</span>
+                <span className="font-semibold">
+                  R$ {(() => {
+                    const { breakfast, lunch, dinner, water } = form.watch('global.perDiem')
+                    if (isRegional) {
+                      const lunchEnabled = form.watch('global.regionalOptions.lunchEnabled')
+                      const waterEnabled = form.watch('global.regionalOptions.waterEnabled')
+                      return (breakfast || 0) + (lunchEnabled ? (lunch || 0) : 0) + 0 + (waterEnabled ? (water || 0) : 0)
+                    }
+                    return (breakfast || 0) + (lunch || 0) + (dinner || 0) + (water || 0)
+                  })().toFixed(2)}
+                </span>
+              </div>
+              {!isRegional && (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Hospedagem:</span>
+                    <span className="font-semibold">
+                      R$ {itineraryFields.reduce((sum, _, index) => {
+                        const hotelNightly = form.watch(`itinerary.${index}.hotelNightly`)
+                        return sum + (hotelNightly || 0)
+                      }, 0).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Transporte Intermunicipal:</span>
+                    <span className="font-semibold">
+                      R$ {itineraryFields.reduce((sum, _, index) => {
+                        const intercityCost = form.watch(`itinerary.${index}.intercityCost`)
+                        return sum + (intercityCost || 0)
+                      }, 0).toFixed(2)}
+                    </span>
+                  </div>
+                </>
+              )}
+              <div className="flex justify-between">
+                <span className="text-gray-600">Transporte Local:</span>
+                <span className="font-semibold">
+                  R$ {itineraryFields.reduce((sum, _, index) => {
+                    const localTransport = form.watch(`itinerary.${index}.localTransportPerDay`)
+                    return sum + (localTransport || 0)
+                  }, 0).toFixed(2)}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-      )}
+      </StepCard>
 
-      {/* Submit Button */}
-      <div className="flex justify-center">
-        <button
-          type="submit"
-          className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-12 py-4 rounded-2xl text-xl font-semibold transition-all duration-200 shadow-2xl hover:shadow-3xl transform hover:-translate-y-2 flex items-center space-x-3"
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
-          <span>Salvar Planejamento</span>
-        </button>
-      </div>
-    </form>
+      {/* Footer com Navegação */}
+      <StepFooter
+        currentStep={currentStep}
+        totalSteps={STEPS.length}
+        onNext={nextStep}
+        onPrevious={previousStep}
+        onSaveDraft={handleSaveDraft}
+        canGoNext={canGoNext()}
+        canGoPrevious={canGoPrevious()}
+      />
+    </div>
   )
 }
 
@@ -609,12 +753,12 @@ function StoresEditor({ cityIndex, form }: { cityIndex: number; form: any }) {
   return (
     <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
       <div className="flex items-center justify-between mb-4">
-        <h4 className="text-lg font-semibold text-gray-800 flex items-center">
+        <h5 className="text-lg font-semibold text-gray-800 flex items-center">
           <svg className="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
           </svg>
           Unidades
-        </h4>
+        </h5>
         <button
           type="button"
           className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2"
@@ -632,7 +776,7 @@ function StoresEditor({ cityIndex, form }: { cityIndex: number; form: any }) {
           {stores.map((store: any, storeIndex: number) => (
             <div key={store.id} className="border border-gray-200 rounded-lg p-4 bg-white">
               <div className="flex items-center justify-between mb-3">
-                <h5 className="font-medium text-gray-800">Unidade {storeIndex + 1}</h5>
+                <h6 className="font-medium text-gray-800">Unidade {storeIndex + 1}</h6>
                 <button
                   type="button"
                   onClick={() => removeStore(storeIndex)}
@@ -673,8 +817,6 @@ function StoresEditor({ cityIndex, form }: { cityIndex: number; form: any }) {
                     min="0"
                   />
                 </div>
-
-                {/* Coordenadas removidas por não serem mais utilizadas */}
               </div>
             </div>
           ))}

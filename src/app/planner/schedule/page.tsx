@@ -399,7 +399,7 @@ export default function SchedulePage() {
                         <span className="font-semibold text-gray-900">R$ {schedule.days.filter(day => day.type !== 'DESCANSO').reduce((sum, day) => sum + day.costs.lodging, 0).toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-600">Alimentação:</span>
+                        <span className="text-gray-600">Diária (Refeições):</span>
                         <span className="font-semibold text-gray-900">R$ {schedule.days.filter(day => day.type !== 'DESCANSO').reduce((sum, day) => sum + day.costs.perDiem, 0).toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between items-center">
