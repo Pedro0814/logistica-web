@@ -60,7 +60,15 @@ export default function SchedulePage() {
 
   const schedule = useMemo(() => {
     if (!currentPlanner) return null
-    const sched = computeSchedule(currentPlanner, assumptions)
+    const normalized: PlannerInput = {
+      ...currentPlanner,
+      global: {
+        ...currentPlanner.global,
+        operationType: currentPlanner.global.operationType ?? 'travel',
+        regionalOptions: currentPlanner.global.regionalOptions ?? { lunchEnabled: false, waterEnabled: false },
+      },
+    }
+    const sched = computeSchedule(normalized, assumptions)
     const costs = computeCosts(currentPlanner, sched)
     return { ...sched, totalCosts: costs.total }
   }, [currentPlanner, assumptions])
@@ -403,7 +411,7 @@ export default function SchedulePage() {
                       <CostsPie data={[
                         { name: 'Transporte', value: schedule.days.filter(d => d.type !== 'DESCANSO').reduce((s, d) => s + d.costs.transport, 0) },
                         { name: 'Hospedagem', value: schedule.days.filter(d => d.type !== 'DESCANSO').reduce((s, d) => s + d.costs.lodging, 0) },
-                        { name: 'Alimentação', value: schedule.days.filter(d => d.type !== 'DESCANSO').reduce((s, d) => s + d.costs.perDiem, 0) },
+                        { name: 'Diária (Alimentação)', value: schedule.days.filter(d => d.type !== 'DESCANSO').reduce((s, d) => s + d.costs.perDiem, 0) },
                         { name: 'Técnico', value: schedule.days.filter(d => d.type !== 'DESCANSO').reduce((s, d) => s + d.costs.technician, 0) },
                       ]} />
                       <DailyBar data={schedule.days.filter(d => d.type !== 'DESCANSO').map((d, i) => ({ day: `${i+1}`, custo: d.costs.transport + d.costs.lodging + d.costs.perDiem + d.costs.technician }))} />

@@ -30,6 +30,7 @@ export function computeSchedule(input: PlannerInput, assumptions: Assumptions): 
   const { dailyWorkingHours = 8, travelHoursPerLeg = 2 } = assumptions
   const assetsPerDay = input.global.assetsPerDay || 150
   const workWeekends = input.global.workWeekends || false
+  const isRegional = input.global.operationType === 'regional'
 
   const days: DayPlan[] = []
   let currentDate = new Date(input.global.startDateISO)
@@ -83,8 +84,8 @@ export function computeSchedule(input: PlannerInput, assumptions: Assumptions): 
     return next
   }
 
-  // Dia 1: Viagem para primeira cidade
-  if (input.itinerary.length > 0) {
+  // Dia 1: Viagem para primeira cidade (apenas se NÃO for regional)
+  if (!isRegional && input.itinerary.length > 0) {
     days.push({
       dateISO: currentDate.toISOString().split('T')[0],
       type: "TRAVEL",
@@ -121,12 +122,20 @@ export function computeSchedule(input: PlannerInput, assumptions: Assumptions): 
         dateISO: currentDate.toISOString().split('T')[0],
         type: "INVENTORY",
         city: cityPlan.city,
-        detail: `Unidades: ${cityPlan.stores.length} | ${assetsToday} bens (hotel ⇄ unidade)`,
+        detail: `Unidades: ${cityPlan.stores.length} | ${assetsToday} bens ${isRegional ? '(casa ⇄ unidade)' : '(hotel ⇄ unidade)'}`,
         assetsProcessed: assetsToday,
         costs: {
           transport: cityPlan.localTransportPerDay || 0,
-          lodging: cityPlan.hotelNightly || 0,
-          perDiem: Object.values(input.global.perDiem).reduce((sum, value) => sum + value, 0),
+          lodging: isRegional ? 0 : (cityPlan.hotelNightly || 0),
+          perDiem: (() => {
+            const { breakfast, lunch, dinner, water } = input.global.perDiem
+            if (isRegional) {
+              const lunchEnabled = input.global.regionalOptions?.lunchEnabled
+              const waterEnabled = input.global.regionalOptions?.waterEnabled
+              return (breakfast || 0) + (lunchEnabled ? (lunch || 0) : 0) + 0 + (waterEnabled ? (water || 0) : 0)
+            }
+            return (breakfast || 0) + (lunch || 0) + (dinner || 0) + (water || 0)
+          })(),
           technician: input.global.technicianDailyRate || 0,
         }
       })
@@ -140,8 +149,8 @@ export function computeSchedule(input: PlannerInput, assumptions: Assumptions): 
       addRestDaysIfNeeded(previousDate, currentDate)
     }
 
-    // Viagem para próxima cidade (exceto na última)
-    if (i < input.itinerary.length - 1) {
+    // Viagem para próxima cidade (exceto na última) - não ocorre em regional
+    if (!isRegional && i < input.itinerary.length - 1) {
       const nextCity = input.itinerary[i + 1]
       days.push({
         dateISO: currentDate.toISOString().split('T')[0],
@@ -165,8 +174,8 @@ export function computeSchedule(input: PlannerInput, assumptions: Assumptions): 
     }
   }
 
-  // Viagem de retorno
-  if (input.itinerary.length > 0) {
+  // Viagem de retorno - não ocorre em regional
+  if (!isRegional && input.itinerary.length > 0) {
     days.push({
       dateISO: currentDate.toISOString().split('T')[0],
       type: "RETURN",

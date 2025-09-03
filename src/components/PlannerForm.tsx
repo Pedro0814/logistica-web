@@ -34,6 +34,8 @@ export default function PlannerForm({ initial, plannerId, onSubmit }: PlannerFor
           water: 0,
         },
         workWeekends: false,
+        operationType: 'travel',
+        regionalOptions: { lunchEnabled: false, waterEnabled: false },
       },
       itinerary: [],
       returnTransportCost: 0,
@@ -222,13 +224,38 @@ export default function PlannerForm({ initial, plannerId, onSubmit }: PlannerFor
             </div>
           </div>
 
-          {/* Per Diem Section */}
+          {/* Tipo de Operação */}
+          <div className="border-t border-gray-200 pt-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-3">Tipo de Operação</h3>
+            <div className="flex items-center gap-4">
+              <label className="inline-flex items-center gap-2">
+                <input
+                  type="radio"
+                  value="travel"
+                  checked={form.watch('global.operationType') !== 'regional'}
+                  onChange={() => form.setValue('global.operationType', 'travel')}
+                />
+                <span>Operação com viagem</span>
+              </label>
+              <label className="inline-flex items-center gap-2">
+                <input
+                  type="radio"
+                  value="regional"
+                  checked={form.watch('global.operationType') === 'regional'}
+                  onChange={() => form.setValue('global.operationType', 'regional')}
+                />
+                <span>Operação regional</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Diária (Alimentação e Hidratação) */}
           <div className="border-t border-gray-200 pt-6">
             <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
               <svg className="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
               </svg>
-              Per Diem (Alimentação e Hidratação)
+              Diária (Alimentação e Hidratação)
             </h3>
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
               <CurrencyInput
@@ -237,23 +264,47 @@ export default function PlannerForm({ initial, plannerId, onSubmit }: PlannerFor
                 onChange={(value) => form.setValue('global.perDiem.breakfast', value)}
                 placeholder="0,00"
               />
+              {/* Em operação regional, almoço e água se tornam opcionais */}
+              {form.watch('global.operationType') === 'regional' && (
+                <div className="col-span-1 flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={form.watch('global.regionalOptions.lunchEnabled')}
+                    onChange={(e) => form.setValue('global.regionalOptions.lunchEnabled', e.target.checked)}
+                  />
+                  <span className="text-sm">Incluir Almoço</span>
+                </div>
+              )}
               <CurrencyInput
                 label="Almoço"
                 value={form.watch('global.perDiem.lunch')}
                 onChange={(value) => form.setValue('global.perDiem.lunch', value)}
                 placeholder="0,00"
+                disabled={form.watch('global.operationType') === 'regional' && !form.watch('global.regionalOptions.lunchEnabled')}
               />
               <CurrencyInput
                 label="Jantar"
                 value={form.watch('global.perDiem.dinner')}
                 onChange={(value) => form.setValue('global.perDiem.dinner', value)}
                 placeholder="0,00"
+                disabled={form.watch('global.operationType') === 'regional'}
               />
+              {form.watch('global.operationType') === 'regional' && (
+                <div className="col-span-1 flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={form.watch('global.regionalOptions.waterEnabled')}
+                    onChange={(e) => form.setValue('global.regionalOptions.waterEnabled', e.target.checked)}
+                  />
+                  <span className="text-sm">Incluir Água</span>
+                </div>
+              )}
               <CurrencyInput
                 label="Água"
                 value={form.watch('global.perDiem.water')}
                 onChange={(value) => form.setValue('global.perDiem.water', value)}
                 placeholder="0,00"
+                disabled={form.watch('global.operationType') === 'regional' && !form.watch('global.regionalOptions.waterEnabled')}
               />
             </div>
           </div>
@@ -326,53 +377,57 @@ export default function PlannerForm({ initial, plannerId, onSubmit }: PlannerFor
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="block text-sm font-semibold text-gray-700">Nome do Hotel</label>
-                    <AttachmentButton
-                      plannerId={plannerId}
-                      fieldType={`hotel_name_${cityIndex}`}
-                      tooltip="Anexar comprovante do hotel"
-                      variant="discrete"
+                {form.watch('global.operationType') !== 'regional' && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-sm font-semibold text-gray-700">Nome do Hotel</label>
+                      <AttachmentButton
+                        plannerId={plannerId}
+                        fieldType={`hotel_name_${cityIndex}`}
+                        tooltip="Anexar comprovante do hotel"
+                        variant="discrete"
+                      />
+                    </div>
+                    <input
+                      {...form.register(`itinerary.${cityIndex}.hotelName`)}
+                      className="block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
+                      placeholder="Nome do hotel"
                     />
+                    {plannerId && (
+                      <FieldAttachments 
+                        plannerId={plannerId} 
+                        fieldType={`hotel_name_${cityIndex}`}
+                        className="mt-1"
+                      />
+                    )}
                   </div>
-                  <input
-                    {...form.register(`itinerary.${cityIndex}.hotelName`)}
-                    className="block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
-                    placeholder="Nome do hotel"
-                  />
-                  {plannerId && (
-                    <FieldAttachments 
-                      plannerId={plannerId} 
-                      fieldType={`hotel_name_${cityIndex}`}
-                      className="mt-1"
-                    />
-                  )}
-                </div>
+                )}
 
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="block text-sm font-semibold text-gray-700">Diária do Hotel</label>
-                    <AttachmentButton
-                      plannerId={plannerId}
-                      fieldType={`hotel_nightly_${cityIndex}`}
-                      tooltip="Anexar comprovante da diária"
-                      variant="discrete"
+                {form.watch('global.operationType') !== 'regional' && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-sm font-semibold text-gray-700">Diária do Hotel</label>
+                      <AttachmentButton
+                        plannerId={plannerId}
+                        fieldType={`hotel_nightly_${cityIndex}`}
+                        tooltip="Anexar comprovante da diária"
+                        variant="discrete"
+                      />
+                    </div>
+                    <CurrencyInput
+                      value={form.watch(`itinerary.${cityIndex}.hotelNightly`)}
+                      onChange={(value) => form.setValue(`itinerary.${cityIndex}.hotelNightly`, value)}
+                      placeholder="0,00"
                     />
+                    {plannerId && (
+                      <FieldAttachments 
+                        plannerId={plannerId} 
+                        fieldType={`hotel_nightly_${cityIndex}`}
+                        className="mt-1"
+                      />
+                    )}
                   </div>
-                  <CurrencyInput
-                    value={form.watch(`itinerary.${cityIndex}.hotelNightly`)}
-                    onChange={(value) => form.setValue(`itinerary.${cityIndex}.hotelNightly`, value)}
-                    placeholder="0,00"
-                  />
-                  {plannerId && (
-                    <FieldAttachments 
-                      plannerId={plannerId} 
-                      fieldType={`hotel_nightly_${cityIndex}`}
-                      className="mt-1"
-                    />
-                  )}
-                </div>
+                )}
 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
@@ -398,29 +453,31 @@ export default function PlannerForm({ initial, plannerId, onSubmit }: PlannerFor
                   )}
                 </div>
 
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="block text-sm font-semibold text-gray-700">Custo Intermunicipal</label>
-                    <AttachmentButton
-                      plannerId={plannerId}
-                      fieldType={`intercity_cost_${cityIndex}`}
-                      tooltip="Anexar comprovante da passagem"
-                      variant="discrete"
+                {form.watch('global.operationType') !== 'regional' && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-sm font-semibold text-gray-700">Custo Intermunicipal</label>
+                      <AttachmentButton
+                        plannerId={plannerId}
+                        fieldType={`intercity_cost_${cityIndex}`}
+                        tooltip="Anexar comprovante da passagem"
+                        variant="discrete"
+                      />
+                    </div>
+                    <CurrencyInput
+                      value={form.watch(`itinerary.${cityIndex}.intercityCost`) as number || 0}
+                      onChange={(value) => form.setValue(`itinerary.${cityIndex}.intercityCost`, value)}
+                      placeholder="0,00"
                     />
+                    {plannerId && (
+                      <FieldAttachments 
+                        plannerId={plannerId} 
+                        fieldType={`intercity_cost_${cityIndex}`}
+                        className="mt-1"
+                      />
+                    )}
                   </div>
-                  <CurrencyInput
-                    value={form.watch(`itinerary.${cityIndex}.intercityCost`) as number || 0}
-                    onChange={(value) => form.setValue(`itinerary.${cityIndex}.intercityCost`, value)}
-                    placeholder="0,00"
-                  />
-                  {plannerId && (
-                    <FieldAttachments 
-                      plannerId={plannerId} 
-                      fieldType={`intercity_cost_${cityIndex}`}
-                      className="mt-1"
-                    />
-                  )}
-                </div>
+                )}
 
                 <div className="space-y-2">
                   <label className="block text-sm font-semibold text-gray-700">Nota de Transporte</label>
@@ -465,6 +522,7 @@ export default function PlannerForm({ initial, plannerId, onSubmit }: PlannerFor
       </div>
 
       {/* Return Transport Cost */}
+      {form.watch('global.operationType') !== 'regional' && (
       <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
         <div className="bg-gradient-to-r from-purple-600 to-pink-600 px-8 py-6">
           <div className="flex items-center space-x-3">
@@ -507,6 +565,7 @@ export default function PlannerForm({ initial, plannerId, onSubmit }: PlannerFor
           </div>
         </div>
       </div>
+      )}
 
       {/* Submit Button */}
       <div className="flex justify-center">
@@ -615,25 +674,7 @@ function StoresEditor({ cityIndex, form }: { cityIndex: number; form: any }) {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">Coordenadas (opcional)</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <input
-                      type="number"
-                      step="any"
-                      {...form.register(`itinerary.${cityIndex}.stores.${storeIndex}.lat`, { valueAsNumber: true })}
-                      className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
-                      placeholder="Latitude"
-                    />
-                    <input
-                      type="number"
-                      step="any"
-                      {...form.register(`itinerary.${cityIndex}.stores.${storeIndex}.lng`, { valueAsNumber: true })}
-                      className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
-                      placeholder="Longitude"
-                    />
-                  </div>
-                </div>
+                {/* Coordenadas removidas por não serem mais utilizadas */}
               </div>
             </div>
           ))}

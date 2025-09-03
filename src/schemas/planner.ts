@@ -9,8 +9,6 @@ export const StoreSchema = z.object({
   name: z.string().min(1, 'Nome obrigatório'),
   addressLine: z.string().min(1, 'Endereço obrigatório'),
   approxAssets: z.number().int().min(0),
-  lat: z.number().optional(),
-  lng: z.number().optional(),
 })
 
 export const CityPlanSchema = z.object({
@@ -39,6 +37,13 @@ export const GlobalInputsSchema = z.object({
   technicianDailyRate: CurrencySchema,
   perDiem: PerDiemSchema,
   workWeekends: z.boolean().default(false), // Novo campo com padrão false
+  operationType: z.enum(['travel', 'regional']).default('travel'),
+  regionalOptions: z
+    .object({
+      lunchEnabled: z.boolean().default(false),
+      waterEnabled: z.boolean().default(false),
+    })
+    .default({ lunchEnabled: false, waterEnabled: false }),
 })
 
 export const PlannerInputSchema = z.object({

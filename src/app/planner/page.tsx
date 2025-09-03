@@ -141,7 +141,14 @@ export default function PlannerPage() {
               >
                 <div className="relative">
                   <PlannerForm
-                    initial={currentPlanner || undefined}
+                    initial={currentPlanner ? {
+                      ...currentPlanner,
+                      global: {
+                        ...currentPlanner.global,
+                        operationType: currentPlanner.global.operationType ?? 'travel',
+                        regionalOptions: currentPlanner.global.regionalOptions ?? { lunchEnabled: false, waterEnabled: false },
+                      }
+                    } : undefined}
                     plannerId={currentPlannerId || undefined}
                     onSubmit={handleSubmit}
                   />

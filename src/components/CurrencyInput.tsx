@@ -7,9 +7,10 @@ type CurrencyInputProps = {
   onChange: (value: number) => void
   placeholder?: string
   className?: string
+  disabled?: boolean
 }
 
-export default function CurrencyInput({ label, value, onChange, placeholder = "0,00", className = "" }: CurrencyInputProps) {
+export default function CurrencyInput({ label, value, onChange, placeholder = "0,00", className = "", disabled = false }: CurrencyInputProps) {
   const formatted = useMemo(() => {
     const safe = typeof value === 'number' && isFinite(value) ? value : 0
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(safe)
@@ -48,6 +49,7 @@ export default function CurrencyInput({ label, value, onChange, placeholder = "0
           onChange={handleInput}
           placeholder={placeholder}
           onFocus={(e) => e.target.select()}
+          disabled={disabled}
         />
       </div>
     </div>

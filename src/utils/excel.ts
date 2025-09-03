@@ -25,7 +25,7 @@ export function exportPlannerToCSV(planner: SavedPlanner, schedule?: ComputedPla
     ['Data de Início', new Date(data.global.startDateISO).toLocaleDateString('pt-BR')],
     ['Trabalhar Finais de Semana', data.global.workWeekends ? 'Sim' : 'Não'],
     [''],
-    ['PER DIEM'],
+    ['DIÁRIA (ALIMENTAÇÃO E HIDRATAÇÃO)'],
     ['Café da Manhã', `R$ ${data.global.perDiem.breakfast.toFixed(2)}`],
     ['Almoço', `R$ ${data.global.perDiem.lunch.toFixed(2)}`],
     ['Jantar', `R$ ${data.global.perDiem.dinner.toFixed(2)}`],
@@ -69,18 +69,17 @@ export function exportPlannerToCSV(planner: SavedPlanner, schedule?: ComputedPla
     'Nome da Unidade',
     'Endereço',
     'Bens Estimados',
-    'Coordenadas'
+    'Observações'
   ])
 
   data.itinerary.forEach(cityPlan => {
     cityPlan.stores.forEach(store => {
-      const coordinates = store.lat && store.lng ? `${store.lat}, ${store.lng}` : '-'
       csvRows.push([
         cityPlan.city,
         store.name,
         store.addressLine,
         store.approxAssets.toString(),
-        coordinates
+        '-'
       ])
     })
   })

@@ -13,9 +13,9 @@ export default function BrandFooter() {
               Planejamento de rotas e custos operacionais para equipes técnicas.
             </p>
           </div>
-          <div className="flex flex-col items-center md:items-end gap-2 text-sm text-background-600">
-            <span>© {new Date().getFullYear()} Inventory Route Planner</span>
-            <span className="text-background-500">Feito com Next.js + Tailwind</span>
+          <div className="flex flex-col items-center md:items-end gap-1 text-sm text-background-700">
+            <span className="font-medium">Autoral de Pedro Menezes</span>
+            <span className="text-xs text-background-500">Mapas por OpenStreetMap. UI com Tailwind e shadcn/ui.</span>
           </div>
         </div>
       </div>

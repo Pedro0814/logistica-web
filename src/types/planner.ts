@@ -7,8 +7,6 @@ export interface Store {
   name: string;            // e.g., "Loja Centro"
   addressLine: string;     // full address text
   approxAssets: number;    // estimated assets in this store
-  lat?: number;            // optional geo coordinates
-  lng?: number;
 }
 
 export interface CityPlan {
@@ -37,6 +35,13 @@ export interface GlobalInputs {
   technicianDailyRate: Currency; // per-day pay (diária)
   perDiem: PerDiem;
   workWeekends: boolean; // Novo campo para controlar finais de semana
+  // Tipo de operação: com viagem (default) ou regional (sem pernoite/viagens intermunicipais)
+  operationType?: 'travel' | 'regional';
+  // Opções específicas para operação regional
+  regionalOptions?: {
+    lunchEnabled: boolean;
+    waterEnabled: boolean;
+  };
 }
 
 export interface PlannerInput {
