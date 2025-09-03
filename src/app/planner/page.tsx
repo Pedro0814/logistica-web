@@ -8,7 +8,6 @@ import FirebaseWarning from '@/components/FirebaseWarning'
 import { samplePlanner } from '@/utils/sample'
 import { useFirebase } from '@/hooks/useFirebase'
 import type { PlannerInput, SavedPlanner } from '@/types/planner'
-import StepIndicator from '@/components/StepIndicator'
 import PanelCard from '@/components/PanelCard'
 import EmptyState from '@/components/EmptyState'
 import { Button } from '@/components/ui/Button'
@@ -93,7 +92,7 @@ export default function PlannerPage() {
               <h1 className="text-2xl font-bold text-gray-900">Planejador de Rotas</h1>
             </div>
             <div className="hidden md:block">
-              <StepIndicator steps={["Dados do Técnico", "Cidades e Unidades", "Custos", "Cronograma"]} current={showForm ? 1 : 0} />
+              <span className="text-sm text-gray-500">Planejador de Rotas</span>
             </div>
             <div className="flex items-center gap-3">
               <Link href="/planner/schedule">
@@ -105,7 +104,7 @@ export default function PlannerPage() {
       </div>
 
         {/* Main Content */}
-      <div className="py-8">
+      <div className="py-8 pb-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Firebase Warning */}
           {firebaseError && <FirebaseWarning />}
@@ -152,14 +151,7 @@ export default function PlannerPage() {
                     plannerId={currentPlannerId || undefined}
                     onSubmit={handleSubmit}
                   />
-                  {/* Sticky actions */}
-                  <div className="sticky bottom-4 mt-6 flex justify-end">
-                    <div className="rounded-lg border border-background-200 bg-white/90 backdrop-blur px-3 py-2 shadow-sm">
-                      <Link href="/planner/schedule">
-                        <Button size="md">Ir para Cronograma</Button>
-                      </Link>
-                    </div>
-                  </div>
+
                 </div>
               </PanelCard>
             </div>

@@ -162,7 +162,7 @@ export default function SchedulePage() {
       )}
 
       {/* Main Content */}
-      <div className="py-8">
+      <div className="py-8 pb-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
           {/* Map Section */}
           <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
