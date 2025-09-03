@@ -149,8 +149,8 @@ export default function SchedulePage() {
 
       {/* Planner Selector Modal */}
       {showPlannerSelector && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[2000] p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto z-[2001]">
             <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 rounded-t-2xl">
               <h2 className="text-xl font-bold text-white">Selecionar Planejamento</h2>
             </div>
@@ -177,7 +177,7 @@ export default function SchedulePage() {
                 <h2 className="text-2xl font-bold text-white">Mapa do Itinerário (OSM)</h2>
               </div>
             </div>
-            <div className="p-6">
+            <div className={`p-6 relative z-0 ${showPlannerSelector ? 'pointer-events-none' : ''}`}>
               <RouteMapLeaflet key={recalcKey} planner={currentPlanner || undefined} />
             </div>
           </div>

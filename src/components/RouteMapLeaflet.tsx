@@ -175,7 +175,7 @@ export default function RouteMapLeaflet({ planner }: { planner?: PlannerInput })
         </div>
       </div>
 
-      <MapContainer className="w-full h-[480px] rounded-lg overflow-hidden border border-background-200" center={[-15.79, -47.88]} zoom={4} scrollWheelZoom>
+      <MapContainer className="w-full h-[480px] rounded-lg overflow-hidden border border-background-200 relative z-0" center={[-15.79, -47.88]} zoom={4} scrollWheelZoom>
         <LayersControl position="topright">
           <LayersControl.BaseLayer checked name="OSM Standard">
             <TileLayer

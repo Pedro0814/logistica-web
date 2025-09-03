@@ -104,7 +104,7 @@ export default function PlannerPage() {
       </div>
 
         {/* Main Content */}
-      <div className="py-8 pb-24">
+      <div className="py-8 pb-32">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Firebase Warning */}
           {firebaseError && <FirebaseWarning />}
@@ -126,7 +126,7 @@ export default function PlannerPage() {
 
           {/* Form Section */}
           {showForm && (
-            <div className="space-y-6">
+            <div className="space-y-6 mb-8">
               <PanelCard
                 title={currentPlanner ? 'Editando Planejamento' : 'Novo Planejamento'}
                 right={
@@ -151,7 +151,6 @@ export default function PlannerPage() {
                     plannerId={currentPlannerId || undefined}
                     onSubmit={handleSubmit}
                   />
-
                 </div>
               </PanelCard>
             </div>
