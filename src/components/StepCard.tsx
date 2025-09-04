@@ -22,7 +22,7 @@ export default function StepCard({
 }: StepCardProps) {
   return (
     <div className={cn(
-      "bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden transition-all duration-300",
+      "w-full bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden transition-all duration-300",
       isActive ? "opacity-100" : "opacity-50 pointer-events-none",
       className
     )}>

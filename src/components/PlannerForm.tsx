@@ -176,7 +176,7 @@ export default function PlannerForm({ initial, plannerId, onSubmit }: PlannerFor
   }
 
   return (
-    <div className="space-y-8 pb-28">
+    <div className="w-full space-y-6 pb-28">
       {/* Banner de Tipo de Operação */}
       <OperationBanner operationType={operationType} />
 

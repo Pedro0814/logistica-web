@@ -104,8 +104,9 @@ export default function PlannerPage() {
       </div>
 
         {/* Main Content */}
-      <main className="mx-auto max-w-6xl px-4 md:px-6">
-        <div className="space-y-6 pb-28">
+      <div className="py-8">
+        <main className="mx-auto max-w-6xl px-4 md:px-6">
+          <div className="w-full space-y-6 pb-28">
           {/* Firebase Warning */}
           {firebaseError && <FirebaseWarning />}
           
@@ -186,8 +187,9 @@ export default function PlannerPage() {
               </PanelCard>
             </div>
           )}
-        </div>
-      </main>
+          </div>
+        </main>
+      </div>
     </div>
   )
 }
