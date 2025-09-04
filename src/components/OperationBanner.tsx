@@ -12,7 +12,7 @@ export default function OperationBanner({ operationType, className }: OperationB
   
   return (
     <div className={cn(
-      "w-full p-4 rounded-xl border-2 transition-all duration-300",
+      "w-full rounded-xl border bg-card shadow-sm p-4 md:p-5 relative z-0 transition-all duration-300",
       isRegional 
         ? "bg-green-50 border-green-200 text-green-800" 
         : "bg-blue-50 border-blue-200 text-blue-800",

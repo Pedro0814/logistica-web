@@ -104,8 +104,8 @@ export default function PlannerPage() {
       </div>
 
         {/* Main Content */}
-      <div className="py-8 pb-32">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <main className="mx-auto max-w-6xl px-4 md:px-6">
+        <div className="space-y-6 pb-28">
           {/* Firebase Warning */}
           {firebaseError && <FirebaseWarning />}
           
@@ -126,7 +126,7 @@ export default function PlannerPage() {
 
           {/* Form Section */}
           {showForm && (
-            <div className="space-y-6 mb-8">
+            <div>
               <PanelCard
                 title={currentPlanner ? 'Editando Planejamento' : 'Novo Planejamento'}
                 right={
@@ -158,7 +158,7 @@ export default function PlannerPage() {
 
           {/* Manager Section */}
           {showManager && (
-            <div className="space-y-6">
+            <div>
               <PanelCard
                 title="Gerenciar Planejamentos"
                 right={<Button variant="secondary" onClick={() => setShowManager(false)}>Voltar</Button>}
@@ -174,7 +174,7 @@ export default function PlannerPage() {
 
           {/* Info Cards */}
           {!showForm && !showManager && (
-            <div className="grid md:grid-cols-3 gap-6 mt-12">
+            <div className="grid md:grid-cols-3 gap-6">
               <PanelCard title="Técnico">
                 <p className="text-gray-600 text-sm">Defina o nome do técnico, cidade de origem e produtividade.</p>
               </PanelCard>
@@ -187,7 +187,7 @@ export default function PlannerPage() {
             </div>
           )}
         </div>
-      </div>
+      </main>
     </div>
   )
 }

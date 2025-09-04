@@ -26,7 +26,7 @@ export default function StepFooter({
 }: StepFooterProps) {
   return (
     <div className={cn(
-      "fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-6 py-4 z-[1000] shadow-lg",
+      "fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-6 py-4 z-20 shadow-lg",
       className
     )}>
       <div className="max-w-7xl mx-auto flex items-center justify-between">

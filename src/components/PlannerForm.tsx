@@ -176,12 +176,12 @@ export default function PlannerForm({ initial, plannerId, onSubmit }: PlannerFor
   }
 
   return (
-    <div className="space-y-8 pb-40">
+    <div className="space-y-8 pb-28">
       {/* Banner de Tipo de Operação */}
       <OperationBanner operationType={operationType} />
 
       {/* Stepper */}
-      <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
+      <div className="rounded-xl border bg-background shadow-sm p-4 md:p-6">
         <Stepper 
           steps={updateStepStatus()} 
           currentStep={currentStep}
