@@ -141,6 +141,9 @@ export default function SchedulePage() {
               <StatBadge label="Bens" value={schedule?.totalAssets ?? 0} />
               <StatBadge label="Custo" value={`R$ ${(schedule?.totalCosts ?? 0).toFixed(2)}`} />
               <Button variant="secondary" onClick={() => setShowPlannerSelector(true)}>Trocar Plano</Button>
+              <Link href="/planner/finance">
+                <Button>Ver Financeiro</Button>
+              </Link>
               <Button variant="destructive" onClick={handleClearDraft}>Limpar Rascunho</Button>
             </div>
           </div>

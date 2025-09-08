@@ -106,7 +106,16 @@ export function deletePlanner(id: string): boolean {
 
 // Funções para rascunho (mantidas para compatibilidade)
 export function savePlannerDraft(planner: PlannerInput): void {
-  localStorage.setItem(DRAFT_KEY, JSON.stringify(planner))
+  // Garantir que o bloco financeiro tenha defaults válidos se existir
+  const normalized: PlannerInput = {
+    ...planner,
+    financial: planner.financial ? {
+      billedAmount: Math.max(0, Number(planner.financial.billedAmount || 0)),
+      taxPercent: Math.max(0, Number(planner.financial.taxPercent ?? 9.65)),
+      actualCosts: planner.financial.actualCosts || {},
+    } : undefined,
+  }
+  localStorage.setItem(DRAFT_KEY, JSON.stringify(normalized))
 }
 
 export function loadPlannerDraft<T = PlannerInput>(): T | null {

@@ -48,6 +48,8 @@ export interface PlannerInput {
   global: GlobalInputs;
   itinerary: CityPlan[];       // ordered list of cities to visit
   returnTransportCost?: Currency; // cost from last city back to origin
+  // Bloco financeiro opcional salvo no rascunho
+  financial?: FinancialInput;
 }
 
 // Novos tipos para gerenciamento de planejamentos
@@ -73,4 +75,16 @@ export interface PlannerList {
 }
 
 
+
+
+// ==========================
+// Financeiro
+// ==========================
+export type CostCategory = 'Transport' | 'Lodging' | 'PerDiem' | 'Technician'
+
+export interface FinancialInput {
+  billedAmount: number; // Valor cobrado (R$)
+  taxPercent: number;   // % impostos (default 9.65)
+  actualCosts?: Partial<Record<CostCategory, number>>; // custos reais por categoria (opcional)
+}
 
