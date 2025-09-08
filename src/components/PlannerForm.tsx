@@ -384,6 +384,45 @@ export default function PlannerForm({ initial, plannerId, onSubmit }: PlannerFor
               />
             </div>
           </div>
+
+          {/* Financeiro */}
+          <div className="border-t border-gray-200 pt-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+              <svg className="w-5 h-5 text-indigo-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+              </svg>
+              Financeiro
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Informe o valor cobrado e a alíquota de impostos. Esses dados serão usados nos gráficos e margens da aba Financeiro.
+            </p>
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-700">Valor cobrado (R$)</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={Number(form.watch('financial.billedAmount') ?? 0)}
+                  onChange={(e) => form.setValue('financial.billedAmount', Number(e.target.value))}
+                  className="block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
+                  placeholder="0,00"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-700">% Impostos</label>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={Number(form.watch('financial.taxPercent') ?? 9.65)}
+                  onChange={(e) => form.setValue('financial.taxPercent', Number(e.target.value))}
+                  className="block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
+                  placeholder="9,65"
+                />
+                <p className="text-xs text-gray-500">Impostos aplicados sobre a receita bruta para obter a receita líquida.</p>
+              </div>
+            </div>
+          </div>
         </div>
       </StepCard>
 
