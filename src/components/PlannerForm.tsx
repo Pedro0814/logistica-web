@@ -72,6 +72,7 @@ export default function PlannerForm({ initial, plannerId, onSubmit }: PlannerFor
       },
       itinerary: [],
       returnTransportCost: 0,
+      financial: { billedAmount: 0, taxPercent: 9.65, actualCosts: {} },
     },
   })
 

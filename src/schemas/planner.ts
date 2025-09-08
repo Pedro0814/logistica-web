@@ -46,10 +46,20 @@ export const GlobalInputsSchema = z.object({
     .default({ lunchEnabled: false, waterEnabled: false }),
 })
 
+// Financeiro
+export const CostCategoryEnum = z.enum(['Transport', 'Lodging', 'PerDiem', 'Technician'])
+
+export const FinancialInputSchema = z.object({
+  billedAmount: z.number().finite().min(0).default(0),
+  taxPercent: z.number().finite().min(0).default(9.65),
+  actualCosts: z.record(CostCategoryEnum, z.number().finite().min(0)).optional(),
+})
+
 export const PlannerInputSchema = z.object({
   global: GlobalInputsSchema,
   itinerary: z.array(CityPlanSchema).min(1, 'Inclua pelo menos uma cidade'),
   returnTransportCost: CurrencySchema.optional(),
+  financial: FinancialInputSchema.optional(),
 })
 
 export type Currency = z.infer<typeof CurrencySchema>
@@ -58,5 +68,7 @@ export type CityPlan = z.infer<typeof CityPlanSchema>
 export type PerDiem = z.infer<typeof PerDiemSchema>
 export type GlobalInputs = z.infer<typeof GlobalInputsSchema>
 export type PlannerInput = z.infer<typeof PlannerInputSchema>
+export type FinancialInput = z.infer<typeof FinancialInputSchema>
+export type CostCategory = z.infer<typeof CostCategoryEnum>
 
 
