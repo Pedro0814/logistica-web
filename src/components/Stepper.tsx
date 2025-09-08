@@ -67,19 +67,7 @@ export default function Stepper({ steps, currentStep, onStepClick, className }: 
               </>
             )}
             
-            {/* Labels para desktop */}
-            <div className="absolute left-1/2 -translate-x-1/2 mt-3 hidden sm:block">
-              <span className={cn(
-                "text-sm font-medium",
-                step.status === 'completed' ? "text-green-600" : 
-                step.status === 'current' ? "text-green-600" : "text-gray-500"
-              )}>
-                {step.title}
-              </span>
-              <p className="text-xs text-gray-400 mt-1 max-w-24 text-center">
-                {step.description}
-              </p>
-            </div>
+            {/* Sem legendas visíveis */}
           </li>
         ))}
       </ol>
