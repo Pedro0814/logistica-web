@@ -121,7 +121,7 @@ export default function SchedulePage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
       {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto px-4 md:px-6">
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center space-x-4">
               <Link href="/planner" className="text-gray-500 hover:text-gray-700 transition-colors duration-200">
@@ -166,7 +166,7 @@ export default function SchedulePage() {
 
       {/* Main Content */}
       <div className="py-8 pb-24">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+        <div className="max-w-6xl mx-auto px-4 md:px-6 space-y-8">
           {/* Map Section */}
           <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
             <div className="bg-gradient-to-r from-green-600 to-emerald-600 px-8 py-6">
