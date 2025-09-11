@@ -13,6 +13,7 @@ import StatBadge from '@/components/StatBadge'
 import SplitButtonExport from '@/components/SplitButtonExport'
 import { CostsPie, DailyBar } from '@/components/Charts'
 import { useFirebase } from '@/hooks/useFirebase'
+import AttachmentManager from '@/components/AttachmentManager'
 
 const RouteMapLeaflet = dynamic(() => import("@/components/RouteMapLeaflet"), { ssr: false });
 
@@ -30,6 +31,7 @@ export default function SchedulePage() {
   })
 
   const [currentPlanner, setCurrentPlanner] = useState<PlannerInput | null>(null)
+  const [currentPlannerId, setCurrentPlannerId] = useState<string>('')
   const [plannerTitle, setPlannerTitle] = useState<string>('')
   const [showPlannerSelector, setShowPlannerSelector] = useState(false)
   const [availablePlanners, setAvailablePlanners] = useState<SavedPlanner[] | null>(null)
@@ -48,6 +50,7 @@ export default function SchedulePage() {
           if (!mounted) return
           if (full) {
             setCurrentPlanner(full.data)
+            setCurrentPlannerId(full.metadata.id)
             setPlannerTitle(full.metadata.title)
           }
         }
@@ -78,6 +81,7 @@ export default function SchedulePage() {
 
   const handleLoadPlanner = (planner: SavedPlanner) => {
     setCurrentPlanner(planner.data)
+    setCurrentPlannerId(planner.metadata.id)
     setPlannerTitle(planner.metadata.title)
     setShowPlannerSelector(false)
   }
@@ -315,6 +319,25 @@ export default function SchedulePage() {
               </div>
             </div>
           </div>
+
+          {/* Anexos do Planejamento */}
+          {currentPlanner && (
+            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+              <div className="bg-gradient-to-r from-orange-600 to-red-600 px-8 py-6">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                    </svg>
+                  </div>
+                  <h2 className="text-2xl font-bold text-white">Anexos do Planejamento</h2>
+                </div>
+              </div>
+              <div className="p-6">
+                <AttachmentManager planId={currentPlannerId || 'temp'} readOnly={true} />
+              </div>
+            </div>
+          )}
 
           {/* Costs Summary + Charts + Export */}
           <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">

@@ -6,6 +6,7 @@ import { PlannerInputSchema, type PlannerInput } from '@/schemas/planner'
 import CurrencyInput from './CurrencyInput'
 import AttachmentButton from './AttachmentButton'
 import FieldAttachments from './FieldAttachments'
+import AttachmentManager from './AttachmentManager'
 import { useState } from 'react'
 import Stepper, { type Step } from './Stepper'
 import StepCard from './StepCard'
@@ -752,6 +753,11 @@ export default function PlannerForm({ initial, plannerId, onSubmit }: PlannerFor
           </div>
         </div>
       </StepCard>
+
+      {/* Anexos do Planejamento */}
+      {plannerId && (
+        <AttachmentManager planId={plannerId} />
+      )}
 
       {/* Footer com Navegação */}
       <StepFooter
