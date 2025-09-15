@@ -85,17 +85,17 @@ export default function PlannerForm({ initial, plannerId, onSubmit }: PlannerFor
 
   const operationType = form.watch('global.operationType')
   const isRegional = operationType === 'regional'
+  const originCityValue = form.watch('global.originCity')
 
-  // Em operação regional, garante que exista ao menos uma cidade com o nome da cidade de origem
+  // Em operação regional, garante que exista ao menos uma cidade e sincroniza o nome com a cidade de origem
   useEffect(() => {
     if (!isRegional) return
-    const originCity = form.getValues('global.originCity')
     const itinerary = form.getValues('itinerary')
 
     if (!itinerary || itinerary.length === 0) {
       appendCity({
         id: crypto.randomUUID(),
-        city: originCity || '',
+        city: originCityValue || '',
         arrivalTransportNote: '',
         intercityCost: 0,
         hotelName: '',
@@ -106,11 +106,11 @@ export default function PlannerForm({ initial, plannerId, onSubmit }: PlannerFor
       return
     }
 
-    // Se já existir a primeira cidade mas estiver vazia, sincroniza com a origem
-    if (!itinerary[0]?.city && originCity) {
-      form.setValue('itinerary.0.city', originCity)
+    // Sempre que a cidade de origem mudar, reflete na primeira cidade (regional)
+    if (originCityValue !== undefined) {
+      form.setValue('itinerary.0.city', originCityValue || '')
     }
-  }, [isRegional, appendCity, form])
+  }, [isRegional, originCityValue, appendCity, form, itineraryFields.length])
 
   const handleSubmit = (values: PlannerInput) => {
     if (!plannerTitle.trim()) {
@@ -179,6 +179,12 @@ export default function PlannerForm({ initial, plannerId, onSubmit }: PlannerFor
         const originCity = form.watch('global.originCity')
         return Boolean(technicianName && originCity)
       case 2: // Itinerário
+        if (isRegional) {
+          // Regional: exigir pelo menos uma unidade na primeira cidade
+          const firstCity = form.watch('itinerary.0')
+          return Boolean(firstCity && (firstCity.stores?.length || 0) > 0)
+        }
+        // Viagem: cada cidade precisa de nome e pelo menos uma unidade
         return itineraryFields.length > 0 && itineraryFields.every((_, index) => {
           const city = form.watch(`itinerary.${index}`)
           return Boolean(city?.city && city?.stores?.length > 0)
