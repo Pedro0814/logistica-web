@@ -8,6 +8,7 @@ import AttachmentButton from './AttachmentButton'
 import FieldAttachments from './FieldAttachments'
 import AttachmentManager from './AttachmentManager'
 import { useState } from 'react'
+import { useEffect } from 'react'
 import Stepper, { type Step } from './Stepper'
 import StepCard from './StepCard'
 import StepFooter from './StepFooter'
@@ -84,6 +85,32 @@ export default function PlannerForm({ initial, plannerId, onSubmit }: PlannerFor
 
   const operationType = form.watch('global.operationType')
   const isRegional = operationType === 'regional'
+
+  // Em operação regional, garante que exista ao menos uma cidade com o nome da cidade de origem
+  useEffect(() => {
+    if (!isRegional) return
+    const originCity = form.getValues('global.originCity')
+    const itinerary = form.getValues('itinerary')
+
+    if (!itinerary || itinerary.length === 0) {
+      appendCity({
+        id: crypto.randomUUID(),
+        city: originCity || '',
+        arrivalTransportNote: '',
+        intercityCost: 0,
+        hotelName: '',
+        hotelNightly: 0,
+        localTransportPerDay: 0,
+        stores: [],
+      })
+      return
+    }
+
+    // Se já existir a primeira cidade mas estiver vazia, sincroniza com a origem
+    if (!itinerary[0]?.city && originCity) {
+      form.setValue('itinerary.0.city', originCity)
+    }
+  }, [isRegional, appendCity, form])
 
   const handleSubmit = (values: PlannerInput) => {
     if (!plannerTitle.trim()) {
