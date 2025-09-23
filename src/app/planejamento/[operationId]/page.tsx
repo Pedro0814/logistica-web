@@ -247,7 +247,21 @@ export default function PlanningPage() {
             <h2 className="text-xl font-semibold">Unidades (CEP → Autofill)</h2>
             <Button onClick={addUnit}>Adicionar Unidade</Button>
           </div>
+          {/* Hint visível em quadro branco com letras claras sobre o CEP */}
+          <div className="mb-4 rounded-lg border border-gray-200 bg-white p-3">
+            <p className="text-sm text-gray-500">
+              Dica: informe o CEP e saia do campo (Tab) para preencher automaticamente logradouro, bairro, cidade e UF. Os dados podem ser editados.
+            </p>
+          </div>
           <div className="space-y-4">
+            {docState.units.length === 0 && (
+              <div className="rounded-lg border border-dashed border-gray-300 bg-white p-6 text-center">
+                <p className="text-sm text-gray-500 mb-3">
+                  Você pode utilizar o CEP para preencher automaticamente os endereços das unidades.
+                </p>
+                <Button onClick={addUnit}>Adicionar primeira unidade</Button>
+              </div>
+            )}
             {docState.units.map((u) => (
               <div key={u.id} className="border rounded-xl p-4">
                 <div className="grid md:grid-cols-5 gap-4">
