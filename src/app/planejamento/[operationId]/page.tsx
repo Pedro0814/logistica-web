@@ -44,13 +44,13 @@ export default function PlanningPage() {
           {op && (
             <PlanningHeader
               value={{
-                nome: op.name || '',
-                cliente: op.client || '',
-                periodoInicio: op.startDate || '',
-                periodoFim: op.endDate || '',
-                multiTecnico: !!op.allowMultiTechPerInventory,
-                equalizarCustos: !!op.equalizeCostsAcrossTechs,
-                equalizarModo: (op.equalizationMode as any) || 'replicate',
+                nome: (op as any)?.name || '',
+                cliente: (op as any)?.client || '',
+                periodoInicio: (op as any)?.startDate || '',
+                periodoFim: (op as any)?.endDate || '',
+                multiTecnico: !!(op as any)?.allowMultiTechPerInventory,
+                equalizarCustos: !!(op as any)?.equalizeCostsAcrossTechs,
+                equalizarModo: ((op as any)?.equalizationMode as any) || 'replicate',
               }}
               onChange={(patch) => updateOp({
                 name: patch.nome,
