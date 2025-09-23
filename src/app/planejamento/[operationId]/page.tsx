@@ -99,7 +99,7 @@ export default function PlanningPage() {
             rows={(planning as any) || []}
             units={(units as any)?.map((u: any) => ({ id: u.id, label: u.addressLine || u.cep })) || []}
             techOptions={techOptions}
-            equalize={{ enabled: !!op?.equalizeCostsAcrossTechs, mode: (op?.equalizationMode as any) || 'replicate' }}
+            equalize={{ enabled: !!(op as any)?.equalizeCostsAcrossTechs, mode: ((op as any)?.equalizationMode as any) || 'replicate' }}
             onChange={(idx, next) => savePlanning(next.id, {
               id: next.id,
               date: next.dateISO,
