@@ -1,6 +1,145 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    function isSignedIn() { return request.auth != null; }
+    function role() { return request.auth.token.role; } // 'admin' | 'coord' | 'tech'
+    function isAdmin() { return role() == 'admin'; }
+    function isCoord() { return role() == 'coord'; }
+    function isTech()  { return role() == 'tech'; }
+
+    // YYYY-MM-DD simples
+    function isISODate(s) {
+      return s is string && s.size() == 10 && s.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+    }
+
+    function isNonNegInt(n) { return n is int && n >= 0; }
+
+    function validMoney(obj) {
+      return obj is map &&
+             isNonNegInt(obj.ticketsCents) &&
+             isNonNegInt(obj.transportLocalCents) &&
+             isNonNegInt(obj.hotelCents) &&
+             isNonNegInt(obj.foodCents) &&
+             isNonNegInt(obj.hydrationCents) &&
+             isNonNegInt(obj.allowanceExtraCents);
+    }
+
+    function arrayOfStrings(a) {
+      return a is list && a.size() >= 1 && a.size() <= 20 &&
+             a.every(x => x is string && x.size() > 0);
+    }
+
+    // Checa se o usuário tech está designado na operação
+    // Importante: assignments devem ser gravados com docId == uid do tech
+    function isAssignedTech(opId) {
+      return isSignedIn() && exists(/databases/$(database)/documents/operations/$(opId)/assignments/$(request.auth.uid));
+    }
+
+    // =========================
+    // operations
+    // =========================
+    match /operations/{operationId} {
+      allow read: if isSignedIn() && (isAdmin() || isCoord() || (isTech() && isAssignedTech(operationId)));
+      allow create, update, delete: if isSignedIn() && (isAdmin() || isCoord());
+
+      // planning
+      match /planning/{dayId} {
+        allow read: if isSignedIn() && (isAdmin() || isCoord() || (isTech() && isAssignedTech(operationId)));
+        allow create, update, delete: if isSignedIn() && (isAdmin() || isCoord());
+        allow create, update: if request.resource.data.date is string
+                              && isISODate(request.resource.data.date)
+                              && arrayOfStrings(request.resource.data.techIds)
+                              && request.resource.data.plannedAssets is int && request.resource.data.plannedAssets >= 0
+                              && validMoney(request.resource.data.plannedCosts);
+      }
+
+      // actuals
+      match /actuals/{dayId} {
+        allow read: if isSignedIn() && (isAdmin() || isCoord() || (isTech() && isAssignedTech(operationId)));
+        allow create, update: if isSignedIn() && (
+                                  isAdmin() || isCoord() || (isTech() && isAssignedTech(operationId))
+                                )
+                                && request.resource.data.date is string
+                                && isISODate(request.resource.data.date)
+                                && arrayOfStrings(request.resource.data.techIds)
+                                && request.resource.data.actualAssets is int && request.resource.data.actualAssets >= 0
+                                && validMoney(request.resource.data.actualCosts)
+                                && request.resource.data.meta is map
+                                && request.resource.data.meta.filledBy == request.auth.uid;
+        // Tech não pode deletar
+        allow delete: if isSignedIn() && (isAdmin() || isCoord());
+      }
+
+      // attachments
+      match /attachments/{attachmentId} {
+        allow read: if isSignedIn() && (isAdmin() || isCoord() || (isTech() && isAssignedTech(operationId)));
+        // Tech pode enviar comprovantes
+        allow create: if isSignedIn() && (
+                        isAdmin() || isCoord() || (isTech() && isAssignedTech(operationId))
+                      )
+                      && request.resource.data.url is string && request.resource.data.url.size() > 10
+                      && request.resource.data.publicId is string && request.resource.data.publicId.size() > 3
+                      && request.resource.data.uploadedAt != null;
+        // Somente autor (ou coord/admin) pode atualizar/deletar seu anexo
+        allow update, delete: if isSignedIn() && (
+                                isAdmin() || isCoord() ||
+                                (isTech() && isAssignedTech(operationId) && resource.data.meta.filledBy == request.auth.uid)
+                              );
+      }
+
+      // assignments (ideal: docId == uid do tech)
+      match /assignments/{assignmentId} {
+        allow read: if isSignedIn() && (isAdmin() || isCoord() || (isTech() && isAssignedTech(operationId)));
+        allow create, update, delete: if isSignedIn() && (isAdmin() || isCoord());
+      }
+
+      // comments
+      match /comments/{commentId} {
+        allow read: if isSignedIn() && (isAdmin() || isCoord() || (isTech() && isAssignedTech(operationId)));
+        allow create: if isSignedIn() && (isAdmin() || isCoord() || (isTech() && isAssignedTech(operationId)));
+        allow update, delete: if isSignedIn() && (isAdmin() || isCoord()
+                                      || (isTech() && isAssignedTech(operationId) && resource.data.author == request.auth.uid));
+      }
+    }
+
+    // =========================
+    // technicians (globais)
+    // =========================
+    match /technicians/{techId} {
+      allow read: if isSignedIn() && (isAdmin() || isCoord());
+      allow create, update, delete: if isSignedIn() && isAdmin();
+    }
+
+    // =========================
+    // units (globais)
+    // =========================
+    match /units/{unitId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isSignedIn() && (isAdmin() || isCoord());
+    }
+
+    // =========================
+    // weekendPolicies (globais)
+    // =========================
+    match /weekendPolicies/{policyId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && (isAdmin() || isCoord());
+      allow delete: if isSignedIn() && isAdmin();
+
+      allow create, update: if request.resource.data.name is string
+                            && request.resource.data.weeks is list
+                            && request.resource.data.weeks.every(w => w is map
+                                  && (w.weekIndex is int && w.weekIndex >= 1)
+                                  && (w.saturday is string && (w.saturday == 'work' || w.saturday == 'off'))
+                                  && (w.sunday is string && (w.sunday == 'work' || w.sunday == 'off')));
+    }
+  }
+}
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
     
     // Regras para planos
     match /plans/{planId} {
