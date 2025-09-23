@@ -1,4 +1,4 @@
-import { Timestamp, type FirestoreDataConverter, doc, collection } from 'firebase/firestore'
+import { Timestamp, type FirestoreDataConverter, type DocumentData, doc, collection } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import type {
   Operation,
@@ -9,7 +9,9 @@ import type {
   ActualDay,
   OperationAttachment,
   WeekendPolicy,
+  OperationWrite,
 } from './types'
+import { withTimestampsForWrite } from './timestamps'
 
 const withTimestamps = <T>(partial: T | Partial<T>): any => ({
   ...partial,
@@ -18,17 +20,35 @@ const withTimestamps = <T>(partial: T | Partial<T>): any => ({
 })
 
 export const operationConverter: FirestoreDataConverter<Operation> = {
-  toFirestore(model) {
-    return withTimestamps<Operation>(model)
+  toFirestore(model: OperationWrite): DocumentData {
+    const { createdAt, ...rest } = model as any
+    const docData = withTimestampsForWrite(rest, { touchCreated: !createdAt })
+    if (createdAt) (docData as any).createdAt = createdAt
+    return docData
   },
   fromFirestore(snapshot) {
-    return snapshot.data() as Operation
+    const data = snapshot.data() as any
+    const op: Operation = {
+      name: data.name,
+      client: data.client,
+      startDate: data.startDate,
+      endDate: data.endDate,
+      status: data.status,
+      weekendPolicyId: data.weekendPolicyId,
+      allowMultiTechPerInventory: data.allowMultiTechPerInventory,
+      equalizeCostsAcrossTechs: data.equalizeCostsAcrossTechs,
+      equalizationMode: data.equalizationMode,
+      notes: data.notes,
+      createdAt: data.createdAt,
+      updatedAt: data.updatedAt,
+    }
+    return op
   },
 }
 
 export const technicianConverter: FirestoreDataConverter<Technician> = {
   toFirestore(model) {
-    return withTimestamps<Technician>(model)
+    return withTimestamps<any>(model as any)
   },
   fromFirestore(snapshot) {
     return snapshot.data() as Technician
@@ -37,7 +57,7 @@ export const technicianConverter: FirestoreDataConverter<Technician> = {
 
 export const unitConverter: FirestoreDataConverter<UnitDoc> = {
   toFirestore(model) {
-    return withTimestamps<UnitDoc>(model)
+    return withTimestamps<any>(model as any)
   },
   fromFirestore(snapshot) {
     return snapshot.data() as UnitDoc
@@ -46,7 +66,7 @@ export const unitConverter: FirestoreDataConverter<UnitDoc> = {
 
 export const assignmentConverter: FirestoreDataConverter<Assignment> = {
   toFirestore(model) {
-    return withTimestamps<Assignment>(model)
+    return withTimestamps<any>(model as any)
   },
   fromFirestore(snapshot) {
     return snapshot.data() as Assignment
@@ -55,7 +75,7 @@ export const assignmentConverter: FirestoreDataConverter<Assignment> = {
 
 export const planningDayConverter: FirestoreDataConverter<PlanningDay> = {
   toFirestore(model) {
-    return withTimestamps<PlanningDay>(model)
+    return withTimestamps<any>(model as any)
   },
   fromFirestore(snapshot) {
     return snapshot.data() as PlanningDay
@@ -64,7 +84,7 @@ export const planningDayConverter: FirestoreDataConverter<PlanningDay> = {
 
 export const actualDayConverter: FirestoreDataConverter<ActualDay> = {
   toFirestore(model) {
-    return withTimestamps<ActualDay>(model)
+    return withTimestamps<any>(model as any)
   },
   fromFirestore(snapshot) {
     return snapshot.data() as ActualDay
@@ -73,7 +93,7 @@ export const actualDayConverter: FirestoreDataConverter<ActualDay> = {
 
 export const attachmentConverter: FirestoreDataConverter<OperationAttachment> = {
   toFirestore(model) {
-    return withTimestamps<OperationAttachment>(model)
+    return withTimestamps<any>(model as any)
   },
   fromFirestore(snapshot) {
     return snapshot.data() as OperationAttachment
@@ -82,7 +102,7 @@ export const attachmentConverter: FirestoreDataConverter<OperationAttachment> = 
 
 export const weekendPolicyConverter: FirestoreDataConverter<WeekendPolicy> = {
   toFirestore(model) {
-    return withTimestamps<WeekendPolicy>(model)
+    return withTimestamps<any>(model as any)
   },
   fromFirestore(snapshot) {
     return snapshot.data() as WeekendPolicy

@@ -1,4 +1,4 @@
-import type { Timestamp } from 'firebase/firestore'
+import type { Timestamp, FieldValue } from 'firebase/firestore'
 
 export type OperationStatus = 'draft' | 'active' | 'closed'
 export type Role = 'tech' | 'coord' | 'admin'
@@ -6,17 +6,22 @@ export type EqualizationMode = 'replicate' | 'split' | null
 
 export interface Operation {
   name: string
-  client: string
-  startDate: string
-  endDate: string
-  status: OperationStatus
-  weekendPolicyId: string | null
-  allowMultiTechPerInventory: boolean
-  equalizeCostsAcrossTechs: boolean
-  equalizationMode: EqualizationMode
+  client?: string
+  startDate?: string
+  endDate?: string
+  status?: OperationStatus
+  weekendPolicyId?: string | null
+  allowMultiTechPerInventory?: boolean
+  equalizeCostsAcrossTechs?: boolean
+  equalizationMode?: EqualizationMode
   notes?: string
   createdAt: Timestamp
   updatedAt: Timestamp
+}
+
+export type OperationWrite = Omit<Operation, 'createdAt' | 'updatedAt'> & {
+  createdAt?: FieldValue
+  updatedAt?: FieldValue
 }
 
 export interface Technician {
