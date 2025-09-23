@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { db } from '@/lib/firebase'
-import { doc, getDoc, setDoc } from 'firebase/firestore'
+import { doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore'
 import CEPField from '@/components/CEPField'
 import MoneyInput from '@/components/MoneyInput'
 import WeekendPolicyBuilder from '@/components/WeekendPolicyBuilder'
@@ -36,26 +36,21 @@ type ScheduleEntry = {
   }
 }
 
-type PlanningDoc = {
-  header: {
-    nome: string
-    cliente: string
-    periodoInicio: string
-    periodoFim: string
-    multiTecnico: boolean
-    equalizarCustos: boolean
-    equalizarModo: 'replicar' | 'dividir'
-  }
-  weekendPolicy: { saturdays: boolean[]; sundays: boolean[] }
-  units: Unit[]
-  schedule: ScheduleEntry[]
+type OperationHeader = {
+  nome: string
+  cliente: string
+  periodoInicio: string
+  periodoFim: string
+  multiTecnico: boolean
+  equalizarCustos: boolean
+  equalizarModo: 'replicate' | 'split'
 }
 
 export default function PlanningPage() {
   const params = useParams()
   const operationId = String(params?.operationId || '')
 
-  const [docState, setDocState] = useState<PlanningDoc>({
+  const [docState, setDocState] = useState({
     header: {
       nome: '',
       cliente: '',
@@ -63,7 +58,7 @@ export default function PlanningPage() {
       periodoFim: '',
       multiTecnico: false,
       equalizarCustos: false,
-      equalizarModo: 'replicar',
+      equalizarModo: 'replicate',
     },
     weekendPolicy: { saturdays: [], sundays: [] },
     units: [],
@@ -73,17 +68,64 @@ export default function PlanningPage() {
   useEffect(() => {
     const load = async () => {
       if (!db || !operationId) return
-      const ref = doc(db, 'operations', operationId)
-      const snap = await getDoc(ref)
-      if (snap.exists()) {
-        const data = snap.data() as PlanningDoc
-        setDocState({
-          header: data.header || docState.header,
-          weekendPolicy: data.weekendPolicy || { saturdays: [], sundays: [] },
-          units: data.units || [],
-          schedule: data.schedule || [],
-        })
+      // Carregar header da operação no formato novo
+      const opRef = doc(db, 'operations', operationId)
+      const opSnap = await getDoc(opRef)
+      if (opSnap.exists()) {
+        const op = opSnap.data() as any
+        setDocState((s) => ({
+          ...s,
+          header: {
+            nome: op.name || '',
+            cliente: op.client || '',
+            periodoInicio: op.startDate || '',
+            periodoFim: op.endDate || '',
+            multiTecnico: !!op.allowMultiTechPerInventory,
+            equalizarCustos: !!op.equalizeCostsAcrossTechs,
+            equalizarModo: op.equalizationMode === 'split' ? 'split' : 'replicate',
+          },
+        }))
       }
+
+      // Carregar planejamento diário
+      const planRef = collection(db, `operations/${operationId}/planning`)
+      const planSnap = await getDocs(planRef)
+      const schedule: ScheduleEntry[] = planSnap.docs.map((d) => {
+        const p = d.data() as any
+        return {
+          id: d.id,
+          dateISO: p.date,
+          unitId: p.unitId,
+          technicians: p.techIds || [],
+          assetsPerDay: p.plannedAssets || 0,
+          costs: {
+            passagens: p.plannedCosts?.ticketsCents || 0,
+            transporteLocal: p.plannedCosts?.transportLocalCents || 0,
+            hotel: p.plannedCosts?.hotelCents || 0,
+            alimentacao: p.plannedCosts?.foodCents || 0,
+            hidratacao: p.plannedCosts?.hydrationCents || 0,
+            ajudaExtra: p.plannedCosts?.allowanceExtraCents || 0,
+          },
+        }
+      })
+      setDocState((s) => ({ ...s, schedule }))
+
+      // Carregar lista de unidades para seleção
+      const unitsRef = collection(db, 'units')
+      const unitsSnap = await getDocs(unitsRef)
+      const units: Unit[] = unitsSnap.docs.map((d) => {
+        const u = d.data() as any
+        return {
+          id: d.id,
+          cep: u.cep || '',
+          logradouro: u.addressLine || '',
+          bairro: u.district || '',
+          cidade: u.city || '',
+          uf: u.state || '',
+          autoFilledFromCEP: !!u.autoFilledFromCEP,
+        }
+      })
+      setDocState((s) => ({ ...s, units }))
     }
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -91,9 +133,78 @@ export default function PlanningPage() {
 
   const save = async () => {
     if (!db || !operationId) return
-    const ref = doc(db, 'operations', operationId)
-    await setDoc(ref, docState, { merge: true })
-    alert('Planejamento salvo!')
+    // Salvar operation header no formato oficial
+    const opRef = doc(db, 'operations', operationId)
+    const payload = {
+      name: docState.header.nome,
+      client: docState.header.cliente,
+      startDate: docState.header.periodoInicio,
+      endDate: docState.header.periodoFim,
+      status: 'draft',
+      allowMultiTechPerInventory: docState.header.multiTecnico,
+      equalizeCostsAcrossTechs: docState.header.equalizarCustos,
+      equalizationMode: docState.header.equalizarModo,
+      updatedAt: new Date(),
+    } as any
+
+    await setDoc(opRef, payload, { merge: true })
+
+    // Upsert weekendPolicy e vincular
+    if ((docState.weekendPolicy.saturdays?.length || 0) > 0 || (docState.weekendPolicy.sundays?.length || 0) > 0) {
+      const policyRef = doc(collection(db, 'weekendPolicies'))
+      await setDoc(policyRef, {
+        name: `POLICY-${operationId}`,
+        weeks: Array.from({ length: Math.max(docState.weekendPolicy.saturdays.length, docState.weekendPolicy.sundays.length) }).map((_, i) => ({
+          weekIndex: i + 1,
+          saturday: docState.weekendPolicy.saturdays[i] ? 'work' : 'off',
+          sunday: docState.weekendPolicy.sundays[i] ? 'work' : 'off',
+        })),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      await setDoc(opRef, { weekendPolicyId: policyRef.id }, { merge: true })
+    }
+
+    // Upsert units na coleção raiz
+    for (const u of docState.units) {
+      const unitRef = doc(collection(db, 'units'), u.id || undefined)
+      await setDoc(unitRef, {
+        code: u.code || u.cep || '',
+        name: u.name || u.logradouro || u.cep || 'Unidade',
+        cep: u.cep,
+        addressLine: u.logradouro || '',
+        district: u.bairro || '',
+        city: u.cidade || '',
+        state: u.uf || '',
+        autoFilledFromCEP: !!u.autoFilledFromCEP,
+        updatedAt: new Date(),
+        createdAt: new Date(),
+      }, { merge: true })
+    }
+
+    // Salvar planning rows na subcoleção
+    for (const row of docState.schedule) {
+      const rowRef = doc(collection(db, `operations/${operationId}/planning`), row.id)
+      await setDoc(rowRef, {
+        date: row.dateISO,
+        unitId: row.unitId,
+        techIds: row.technicians,
+        plannedAssets: row.assetsPerDay,
+        plannedCosts: {
+          ticketsCents: row.costs.passagens || 0,
+          transportLocalCents: row.costs.transporteLocal || 0,
+          hotelCents: row.costs.hotel || 0,
+          foodCents: row.costs.alimentacao || 0,
+          hydrationCents: row.costs.hidratacao || 0,
+          allowanceExtraCents: row.costs.ajudaExtra || 0,
+        },
+        respectsWeekend: true,
+        updatedAt: new Date(),
+        createdAt: new Date(),
+      }, { merge: true })
+    }
+
+    alert('Planejamento salvo no novo modelo!')
   }
 
   const addUnit = () => {
@@ -222,11 +333,11 @@ export default function PlanningPage() {
               <span className="text-sm">Modo:</span>
               <select
                 value={docState.header.equalizarModo}
-                onChange={(e) => setDocState((s) => ({ ...s, header: { ...s.header, equalizarModo: e.target.value as 'replicar' | 'dividir' } }))}
+                onChange={(e) => setDocState((s) => ({ ...s, header: { ...s.header, equalizarModo: (e.target.value as 'replicate' | 'split') } }))}
                 className="px-3 py-2 border rounded-lg"
               >
-                <option value="replicar">Replicar</option>
-                <option value="dividir">Dividir</option>
+                <option value="replicate">Replicar</option>
+                <option value="split">Dividir</option>
               </select>
             </div>
           </div>
