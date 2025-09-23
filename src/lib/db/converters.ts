@@ -11,7 +11,7 @@ import type {
   WeekendPolicy,
 } from './types'
 
-const withTimestamps = <T extends object>(partial: Partial<T>): any => ({
+const withTimestamps = <T>(partial: T | Partial<T>): any => ({
   ...partial,
   createdAt: partial && (partial as any).createdAt ? (partial as any).createdAt : Timestamp.now(),
   updatedAt: Timestamp.now(),
