@@ -68,7 +68,7 @@ export default function ExecutionTable({ rows, onChange, savingIds, readOnly }: 
                       <td key={key} className="p-2">
                         <div className={`text-[10px] mb-1 ${plan>0 && pct>150 ? 'text-red-600 font-medium' : 'text-gray-500'}`}>{plan>0? `${pct}% do planejado${pct>150?' (>'+150+'%)':''}` : (val>0? 'sem referência' : '')}</div>
                         <div className={cls(val, plan)}>
-                          <MoneyInput valueInCents={val} onChange={(v) => onChange(r.id, { actualCosts: { ...ac, [key]: Math.max(0, v||0) } })} disabled={readOnly} />
+                          <MoneyInput valueCents={val} onChange={(v) => onChange(r.id, { actualCosts: { ...ac, [key]: Math.max(0, v||0) } })} disabled={readOnly} />
                         </div>
                         <div className="text-[10px] text-gray-400">(Plan: R$ {(plan/100).toFixed(2)})</div>
                       </td>
