@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import Navbar from '@/components/Navbar'
+import QueryProvider from './QueryProvider'
+import ToastProvider from '@/components/ui/Toaster'
 import { ThemeProvider } from 'next-themes'
 import BrandFooter from '@/components/BrandFooter'
 
@@ -26,11 +28,15 @@ export default function RootLayout({
     <html lang="pt-BR">
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
-          <Navbar />
-          <main>
-            {children}
-          </main>
-          <BrandFooter />
+          <QueryProvider>
+            <ToastProvider>
+              <Navbar />
+              <main>
+                {children}
+              </main>
+              <BrandFooter />
+            </ToastProvider>
+          </QueryProvider>
         </ThemeProvider>
       </body>
     </html>

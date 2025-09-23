@@ -1,245 +1,29 @@
 "use client"
 
-import { useEffect, useMemo, useState } from 'react'
-import { useRouter, useParams } from 'next/navigation'
-import { db } from '@/lib/firebase'
-import { doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore'
-import CEPField from '@/components/CEPField'
-import MoneyInput from '@/components/MoneyInput'
-import WeekendPolicyBuilder from '@/components/WeekendPolicyBuilder'
-import TechMultiSelect from '@/components/TechMultiSelect'
+import { useMemo, useState } from 'react'
+import { useParams } from 'next/navigation'
+import PlanningHeader from '@/components/planning/PlanningHeader'
+import WeekendSection from '@/components/planning/WeekendSection'
+import UnitsForm from '@/components/planning/UnitsForm'
+import PlanningTable from '@/components/planning/PlanningTable'
+import { useOperation } from '@/lib/hooks/operations'
+import { useWeekendPolicy } from '@/lib/hooks/weekendPolicy'
+import { useUnits } from '@/lib/hooks/units'
+import { usePlanning } from '@/lib/hooks/planning'
 import { Button } from '@/components/ui/Button'
-
-type Unit = {
-  id: string
-  cep: string
-  logradouro?: string
-  bairro?: string
-  cidade?: string
-  uf?: string
-  autoFilledFromCEP: boolean
-}
-
-type ScheduleEntry = {
-  id: string
-  dateISO: string
-  unitId: string
-  technicians: string[]
-  assetsPerDay: number
-  costs: {
-    passagens: number
-    transporteLocal: number
-    hotel: number
-    alimentacao: number
-    hidratacao: number
-    ajudaExtra: number
-  }
-}
-
-type OperationHeader = {
-  nome: string
-  cliente: string
-  periodoInicio: string
-  periodoFim: string
-  multiTecnico: boolean
-  equalizarCustos: boolean
-  equalizarModo: 'replicate' | 'split'
-}
 
 export default function PlanningPage() {
   const params = useParams()
   const operationId = String(params?.operationId || '')
 
-  const [docState, setDocState] = useState({
-    header: {
-      nome: '',
-      cliente: '',
-      periodoInicio: '',
-      periodoFim: '',
-      multiTecnico: false,
-      equalizarCustos: false,
-      equalizarModo: 'replicate',
-    },
-    weekendPolicy: { saturdays: [], sundays: [] },
-    units: [],
-    schedule: [],
-  })
+  const { data: op, update: updateOp, updating: opSaving, isLoading: opLoading } = useOperation(operationId)
+  const policyId = (op as any)?.weekendPolicyId || null
+  const { data: policy, updateWeeks, updating: policySaving, isLoading: policyLoading } = useWeekendPolicy(policyId, operationId)
+  const { units, saveField: saveUnitField, addUnit, isLoading: unitsLoading, updating: unitsSaving } = useUnits(operationId)
 
-  useEffect(() => {
-    const load = async () => {
-      if (!db || !operationId) return
-      // Carregar header da operação no formato novo
-      const opRef = doc(db, 'operations', operationId)
-      const opSnap = await getDoc(opRef)
-      if (opSnap.exists()) {
-        const op = opSnap.data() as any
-        setDocState((s) => ({
-          ...s,
-          header: {
-            nome: op.name || '',
-            cliente: op.client || '',
-            periodoInicio: op.startDate || '',
-            periodoFim: op.endDate || '',
-            multiTecnico: !!op.allowMultiTechPerInventory,
-            equalizarCustos: !!op.equalizeCostsAcrossTechs,
-            equalizarModo: op.equalizationMode === 'split' ? 'split' : 'replicate',
-          },
-        }))
-      }
-
-      // Carregar planejamento diário
-      const planRef = collection(db, `operations/${operationId}/planning`)
-      const planSnap = await getDocs(planRef)
-      const schedule: ScheduleEntry[] = planSnap.docs.map((d) => {
-        const p = d.data() as any
-        return {
-          id: d.id,
-          dateISO: p.date,
-          unitId: p.unitId,
-          technicians: p.techIds || [],
-          assetsPerDay: p.plannedAssets || 0,
-          costs: {
-            passagens: p.plannedCosts?.ticketsCents || 0,
-            transporteLocal: p.plannedCosts?.transportLocalCents || 0,
-            hotel: p.plannedCosts?.hotelCents || 0,
-            alimentacao: p.plannedCosts?.foodCents || 0,
-            hidratacao: p.plannedCosts?.hydrationCents || 0,
-            ajudaExtra: p.plannedCosts?.allowanceExtraCents || 0,
-          },
-        }
-      })
-      setDocState((s) => ({ ...s, schedule }))
-
-      // Carregar lista de unidades para seleção
-      const unitsRef = collection(db, 'units')
-      const unitsSnap = await getDocs(unitsRef)
-      const units: Unit[] = unitsSnap.docs.map((d) => {
-        const u = d.data() as any
-        return {
-          id: d.id,
-          cep: u.cep || '',
-          logradouro: u.addressLine || '',
-          bairro: u.district || '',
-          cidade: u.city || '',
-          uf: u.state || '',
-          autoFilledFromCEP: !!u.autoFilledFromCEP,
-        }
-      })
-      setDocState((s) => ({ ...s, units }))
-    }
-    load()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [operationId])
-
-  const save = async () => {
-    if (!db || !operationId) return
-    // Salvar operation header no formato oficial
-    const opRef = doc(db, 'operations', operationId)
-    const payload = {
-      name: docState.header.nome,
-      client: docState.header.cliente,
-      startDate: docState.header.periodoInicio,
-      endDate: docState.header.periodoFim,
-      status: 'draft',
-      allowMultiTechPerInventory: docState.header.multiTecnico,
-      equalizeCostsAcrossTechs: docState.header.equalizarCustos,
-      equalizationMode: docState.header.equalizarModo,
-      updatedAt: new Date(),
-    } as any
-
-    await setDoc(opRef, payload, { merge: true })
-
-    // Upsert weekendPolicy e vincular
-    if ((docState.weekendPolicy.saturdays?.length || 0) > 0 || (docState.weekendPolicy.sundays?.length || 0) > 0) {
-      const policyRef = doc(collection(db, 'weekendPolicies'))
-      await setDoc(policyRef, {
-        name: `POLICY-${operationId}`,
-        weeks: Array.from({ length: Math.max(docState.weekendPolicy.saturdays.length, docState.weekendPolicy.sundays.length) }).map((_, i) => ({
-          weekIndex: i + 1,
-          saturday: docState.weekendPolicy.saturdays[i] ? 'work' : 'off',
-          sunday: docState.weekendPolicy.sundays[i] ? 'work' : 'off',
-        })),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      })
-      await setDoc(opRef, { weekendPolicyId: policyRef.id }, { merge: true })
-    }
-
-    // Upsert units na coleção raiz
-    for (const u of docState.units) {
-      const unitRef = doc(collection(db, 'units'), u.id || undefined)
-      await setDoc(unitRef, {
-        code: u.code || u.cep || '',
-        name: u.name || u.logradouro || u.cep || 'Unidade',
-        cep: u.cep,
-        addressLine: u.logradouro || '',
-        district: u.bairro || '',
-        city: u.cidade || '',
-        state: u.uf || '',
-        autoFilledFromCEP: !!u.autoFilledFromCEP,
-        updatedAt: new Date(),
-        createdAt: new Date(),
-      }, { merge: true })
-    }
-
-    // Salvar planning rows na subcoleção
-    for (const row of docState.schedule) {
-      const rowRef = doc(collection(db, `operations/${operationId}/planning`), row.id)
-      await setDoc(rowRef, {
-        date: row.dateISO,
-        unitId: row.unitId,
-        techIds: row.technicians,
-        plannedAssets: row.assetsPerDay,
-        plannedCosts: {
-          ticketsCents: row.costs.passagens || 0,
-          transportLocalCents: row.costs.transporteLocal || 0,
-          hotelCents: row.costs.hotel || 0,
-          foodCents: row.costs.alimentacao || 0,
-          hydrationCents: row.costs.hidratacao || 0,
-          allowanceExtraCents: row.costs.ajudaExtra || 0,
-        },
-        respectsWeekend: true,
-        updatedAt: new Date(),
-        createdAt: new Date(),
-      }, { merge: true })
-    }
-
-    alert('Planejamento salvo no novo modelo!')
-  }
-
-  const addUnit = () => {
-    setDocState((s) => ({
-      ...s,
-      units: [
-        ...s.units,
-        { id: crypto.randomUUID(), cep: '', autoFilledFromCEP: false },
-      ],
-    }))
-  }
-
-  const updateUnit = (id: string, partial: Partial<Unit>) => {
-    setDocState((s) => ({
-      ...s,
-      units: s.units.map((u) => (u.id === id ? { ...u, ...partial } : u)),
-    }))
-  }
-
-  const addScheduleRow = () => {
-    setDocState((s) => ({
-      ...s,
-      schedule: [
-        ...s.schedule,
-        {
-          id: crypto.randomUUID(),
-          dateISO: new Date().toISOString().slice(0, 10),
-          unitId: s.units[0]?.id || '',
-          technicians: [],
-          assetsPerDay: 0,
-          costs: { passagens: 0, transporteLocal: 0, hotel: 0, alimentacao: 0, hidratacao: 0, ajudaExtra: 0 },
-        },
-      ],
-    }))
-  }
+  const startISO = (op as any)?.startDate || ''
+  const endISO = (op as any)?.endDate || ''
+  const { data: planning, save: savePlanning, isLoading: planningLoading, updating: planningSaving } = usePlanning(operationId, { startISO, endISO })
 
   const techOptions = useMemo(() => [
     { id: 't1', name: 'Técnico 1' },
@@ -247,231 +31,100 @@ export default function PlanningPage() {
     { id: 't3', name: 'Técnico 3' },
   ], [])
 
-  const equalizeCostsIfNeeded = (rowIndex: number, technicians: string[]) => {
-    setDocState((s) => {
-      const row = s.schedule[rowIndex]
-      if (!row) return s
-      const multi = s.header.multiTecnico
-      const equal = s.header.equalizarCustos
-      const mode = s.header.equalizarModo
-      if (!multi || !equal) {
-        return {
-          ...s,
-          schedule: s.schedule.map((r, i) => i === rowIndex ? { ...r, technicians } : r)
-        }
-      }
-
-      const num = Math.max(technicians.length, 1)
-      const shared = ['passagens', 'transporteLocal', 'hotel', 'alimentacao', 'hidratacao', 'ajudaExtra'] as const
-      const nextRow: ScheduleEntry = { ...row, technicians }
-      if (mode === 'replicar') {
-        // mantém custos por dia iguais; interpretação na análise/exibição por técnico
-      } else {
-        // dividir pelos técnicos
-        for (const k of shared) {
-          const original = row.costs[k]
-          nextRow.costs[k] = Math.round(original / num)
-        }
-      }
-      const next = s.schedule.map((r, i) => (i === rowIndex ? nextRow : r))
-      return { ...s, schedule: next }
-    })
-  }
+  const saving = opSaving || policySaving || unitsSaving || planningSaving
 
   return (
     <div className="mx-auto max-w-6xl px-4 md:px-6 py-8">
       <div className="space-y-6 pb-28">
-        {/* Cabeçalho da Operação */}
         <div className="rounded-xl border bg-white shadow-sm p-4 md:p-6">
-          <h2 className="text-xl font-semibold mb-4">Cabeçalho da Operação</h2>
-          <div className="grid md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700">Nome da Operação</label>
-              <input
-                value={docState.header.nome}
-                onChange={(e) => setDocState((s) => ({ ...s, header: { ...s.header, nome: e.target.value } }))}
-                className="block w-full px-4 py-3 border border-gray-300 rounded-xl"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700">Cliente</label>
-              <input
-                value={docState.header.cliente}
-                onChange={(e) => setDocState((s) => ({ ...s, header: { ...s.header, cliente: e.target.value } }))}
-                className="block w-full px-4 py-3 border border-gray-300 rounded-xl"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700">Início</label>
-              <input
-                type="date"
-                value={docState.header.periodoInicio}
-                onChange={(e) => setDocState((s) => ({ ...s, header: { ...s.header, periodoInicio: e.target.value } }))}
-                className="block w-full px-4 py-3 border border-gray-300 rounded-xl"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700">Fim</label>
-              <input
-                type="date"
-                value={docState.header.periodoFim}
-                onChange={(e) => setDocState((s) => ({ ...s, header: { ...s.header, periodoFim: e.target.value } }))}
-                className="block w-full px-4 py-3 border border-gray-300 rounded-xl"
-              />
-            </div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold">Cabeçalho da Operação</h2>
+            <span className="text-xs text-gray-500">{opLoading ? 'Carregando…' : saving ? 'Salvando…' : 'Salvo ✓'}</span>
           </div>
-          <div className="mt-4 grid md:grid-cols-3 gap-4 items-center">
-            <label className="flex items-center gap-2">
-              <input type="checkbox" checked={docState.header.multiTecnico} onChange={(e) => setDocState((s) => ({ ...s, header: { ...s.header, multiTecnico: e.target.checked } }))} />
-              <span className="text-sm">Multi-técnico por inventário</span>
-            </label>
-            <label className="flex items-center gap-2">
-              <input type="checkbox" checked={docState.header.equalizarCustos} onChange={(e) => setDocState((s) => ({ ...s, header: { ...s.header, equalizarCustos: e.target.checked } }))} />
-              <span className="text-sm">Equalizar custos entre técnicos</span>
-            </label>
-            <div className="flex items-center gap-2">
-              <span className="text-sm">Modo:</span>
-              <select
-                value={docState.header.equalizarModo}
-                onChange={(e) => setDocState((s) => ({ ...s, header: { ...s.header, equalizarModo: (e.target.value as 'replicate' | 'split') } }))}
-                className="px-3 py-2 border rounded-lg"
-              >
-                <option value="replicate">Replicar</option>
-                <option value="split">Dividir</option>
-              </select>
-            </div>
-          </div>
+          {op && (
+            <PlanningHeader
+              value={{
+                nome: op.name || '',
+                cliente: op.client || '',
+                periodoInicio: op.startDate || '',
+                periodoFim: op.endDate || '',
+                multiTecnico: !!op.allowMultiTechPerInventory,
+                equalizarCustos: !!op.equalizeCostsAcrossTechs,
+                equalizarModo: (op.equalizationMode as any) || 'replicate',
+              }}
+              onChange={(patch) => updateOp({
+                name: patch.nome,
+                client: patch.cliente,
+                startDate: patch.periodoInicio,
+                endDate: patch.periodoFim,
+                allowMultiTechPerInventory: patch.multiTecnico,
+                equalizeCostsAcrossTechs: patch.equalizarCustos,
+                equalizationMode: patch.equalizarModo,
+              })}
+            />
+          )}
         </div>
 
-        {/* Regras de Fim de Semana */}
         <div className="rounded-xl border bg-white shadow-sm p-4 md:p-6">
-          <h2 className="text-xl font-semibold mb-4">Regras de Fim de Semana</h2>
-          <WeekendPolicyBuilder
-            value={docState.weekendPolicy}
-            onChange={(v) => setDocState((s) => ({ ...s, weekendPolicy: v }))}
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold">Regras de Fim de Semana</h2>
+            <span className="text-xs text-gray-500">{policyLoading ? 'Carregando…' : saving ? 'Salvando…' : 'Salvo ✓'}</span>
+          </div>
+          <WeekendSection
+            startISO={startISO}
+            endISO={endISO}
+            weeks={(policy as any)?.weeks || []}
+            onChange={(weeks) => updateWeeks(weeks)}
           />
         </div>
 
-        {/* Unidades com CEP */}
         <div className="rounded-xl border bg-white shadow-sm p-4 md:p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold">Unidades (CEP → Autofill)</h2>
-            <Button onClick={addUnit}>Adicionar Unidade</Button>
+            <Button onClick={() => addUnit()}>Adicionar Unidade</Button>
           </div>
-          {/* Hint visível em quadro branco com letras claras sobre o CEP */}
-          <div className="mb-4 rounded-lg border border-gray-200 bg-white p-3">
-            <p className="text-sm text-gray-500">
-              Dica: informe o CEP e saia do campo (Tab) para preencher automaticamente logradouro, bairro, cidade e UF. Os dados podem ser editados.
-            </p>
-          </div>
-          <div className="space-y-4">
-            {docState.units.length === 0 && (
-              <div className="rounded-lg border border-dashed border-gray-300 bg-white p-6 text-center">
-                <p className="text-sm text-gray-500 mb-3">
-                  Você pode utilizar o CEP para preencher automaticamente os endereços das unidades.
-                </p>
-                <Button onClick={addUnit}>Adicionar primeira unidade</Button>
-              </div>
-            )}
-            {docState.units.map((u) => (
-              <div key={u.id} className="border rounded-xl p-4">
-                <div className="grid md:grid-cols-5 gap-4">
-                  <CEPField
-                    value={u.cep}
-                    onChange={(v) => updateUnit(u.id, { cep: v })}
-                    onAddress={(addr) => updateUnit(u.id, {
-                      logradouro: addr.logradouro,
-                      bairro: addr.bairro,
-                      cidade: addr.cidade,
-                      uf: addr.uf,
-                      autoFilledFromCEP: addr.autoFilledFromCEP,
-                    })}
-                  />
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700">Logradouro</label>
-                    <input value={u.logradouro || ''} onChange={(e) => updateUnit(u.id, { logradouro: e.target.value })} className="block w-full px-4 py-3 border rounded-xl" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700">Bairro</label>
-                    <input value={u.bairro || ''} onChange={(e) => updateUnit(u.id, { bairro: e.target.value })} className="block w-full px-4 py-3 border rounded-xl" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700">Cidade</label>
-                    <input value={u.cidade || ''} onChange={(e) => updateUnit(u.id, { cidade: e.target.value })} className="block w-full px-4 py-3 border rounded-xl" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700">UF</label>
-                    <input value={u.uf || ''} onChange={(e) => updateUnit(u.id, { uf: e.target.value })} className="block w-full px-4 py-3 border rounded-xl" />
-                  </div>
-                </div>
-                <p className="text-xs text-gray-500 mt-2">Autofill: {u.autoFilledFromCEP ? 'Sim' : 'Não'}</p>
-              </div>
-            ))}
-          </div>
+          <UnitsForm
+            units={(units as any) || []}
+            onChange={(id, patch) => saveUnitField(id, patch)}
+            onAdd={() => addUnit()}
+          />
         </div>
 
-        {/* Cronograma Planejado */}
         <div className="rounded-xl border bg-white shadow-sm p-4 md:p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold">Cronograma Planejado</h2>
-            <Button onClick={addScheduleRow}>Adicionar Dia</Button>
+            <span className="text-xs text-gray-500">{planningLoading ? 'Carregando…' : saving ? 'Salvando…' : 'Salvo ✓'}</span>
           </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="text-left text-gray-600">
-                  <th className="p-2">Data</th>
-                  <th className="p-2">Unidade</th>
-                  <th className="p-2">Técnicos</th>
-                  <th className="p-2">Bens/dia</th>
-                  <th className="p-2">Passagens</th>
-                  <th className="p-2">Transp. Local</th>
-                  <th className="p-2">Hotel</th>
-                  <th className="p-2">Alimentação</th>
-                  <th className="p-2">Hidratação</th>
-                  <th className="p-2">Ajuda Extra</th>
-                </tr>
-              </thead>
-              <tbody>
-                {docState.schedule.map((row, idx) => (
-                  <tr key={row.id} className="border-t">
-                    <td className="p-2">
-                      <input type="date" value={row.dateISO} onChange={(e) => setDocState((s) => ({ ...s, schedule: s.schedule.map((r, i) => i === idx ? { ...r, dateISO: e.target.value } : r) }))} className="px-2 py-1 border rounded" />
-                    </td>
-                    <td className="p-2">
-                      <select value={row.unitId} onChange={(e) => setDocState((s) => ({ ...s, schedule: s.schedule.map((r, i) => i === idx ? { ...r, unitId: e.target.value } : r) }))} className="px-2 py-1 border rounded">
-                        <option value="">Selecione</option>
-                        {docState.units.map((u) => (
-                          <option key={u.id} value={u.id}>{u.logradouro || u.cep}</option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="p-2">
-                      <TechMultiSelect
-                        options={techOptions}
-                        value={row.technicians}
-                        onChange={(ids) => equalizeCostsIfNeeded(idx, ids)}
-                      />
-                    </td>
-                    <td className="p-2">
-                      <input type="number" min={0} value={row.assetsPerDay} onChange={(e) => setDocState((s) => ({ ...s, schedule: s.schedule.map((r, i) => i === idx ? { ...r, assetsPerDay: Number(e.target.value) } : r) }))} className="w-24 px-2 py-1 border rounded" />
-                    </td>
-                    <td className="p-2"><MoneyInput valueInCents={row.costs.passagens} onChange={(v) => setDocState((s) => ({ ...s, schedule: s.schedule.map((r, i) => i === idx ? { ...r, costs: { ...r.costs, passagens: v } } : r) }))} /></td>
-                    <td className="p-2"><MoneyInput valueInCents={row.costs.transporteLocal} onChange={(v) => setDocState((s) => ({ ...s, schedule: s.schedule.map((r, i) => i === idx ? { ...r, costs: { ...r.costs, transporteLocal: v } } : r) }))} /></td>
-                    <td className="p-2"><MoneyInput valueInCents={row.costs.hotel} onChange={(v) => setDocState((s) => ({ ...s, schedule: s.schedule.map((r, i) => i === idx ? { ...r, costs: { ...r.costs, hotel: v } } : r) }))} /></td>
-                    <td className="p-2"><MoneyInput valueInCents={row.costs.alimentacao} onChange={(v) => setDocState((s) => ({ ...s, schedule: s.schedule.map((r, i) => i === idx ? { ...r, costs: { ...r.costs, alimentacao: v } } : r) }))} /></td>
-                    <td className="p-2"><MoneyInput valueInCents={row.costs.hidratacao} onChange={(v) => setDocState((s) => ({ ...s, schedule: s.schedule.map((r, i) => i === idx ? { ...r, costs: { ...r.costs, hidratacao: v } } : r) }))} /></td>
-                    <td className="p-2"><MoneyInput valueInCents={row.costs.ajudaExtra} onChange={(v) => setDocState((s) => ({ ...s, schedule: s.schedule.map((r, i) => i === idx ? { ...r, costs: { ...r.costs, ajudaExtra: v } } : r) }))} /></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <PlanningTable
+            rows={(planning as any) || []}
+            units={(units as any)?.map((u: any) => ({ id: u.id, label: u.addressLine || u.cep })) || []}
+            techOptions={techOptions}
+            equalize={{ enabled: !!op?.equalizeCostsAcrossTechs, mode: (op?.equalizationMode as any) || 'replicate' }}
+            onChange={(idx, next) => savePlanning(next.id, {
+              id: next.id,
+              date: next.dateISO,
+              unitId: next.unitId,
+              techIds: next.technicians,
+              plannedAssets: next.assetsPerDay,
+              plannedCosts: {
+                ticketsCents: next.costs.passagens || 0,
+                transportLocalCents: next.costs.transporteLocal || 0,
+                hotelCents: next.costs.hotel || 0,
+                foodCents: next.costs.alimentacao || 0,
+                hydrationCents: next.costs.hidratacao || 0,
+                allowanceExtraCents: next.costs.ajudaExtra || 0,
+              },
+            })}
+            onDuplicate={(idx) => {
+              const row = (planning as any)?.[idx]
+              if (!row) return
+              const id = crypto.randomUUID()
+              savePlanning(id, { ...row, id })
+            }}
+          />
         </div>
 
-        <div className="flex justify-end">
-          <Button onClick={save}>Salvar Planejamento</Button>
-        </div>
+        <div className="flex justify-end text-xs text-gray-500">{saving ? 'Salvando…' : 'Salvo ✓'}</div>
       </div>
     </div>
   )
