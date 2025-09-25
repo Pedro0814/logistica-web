@@ -468,10 +468,10 @@ export default function PlannerForm({ initial, plannerId, onSubmit }: PlannerFor
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">CEP da Unidade (exemplo)</label>
                 <CEPField
-                  value={form.watch('itinerary.0.stores.0.cep') || ''}
-                  onChange={(v) => form.setValue('itinerary.0.stores.0.cep', v)}
+                  value={(form.watch as any)('itinerary.0.stores.0.cep') || ''}
+                  onChange={(v) => (form.setValue as any)('itinerary.0.stores.0.cep', v)}
                   onAutoFill={(addr) => {
-                    form.setValue('itinerary.0.stores.0.addressLine', addr.addressLine)
+                    (form.setValue as any)('itinerary.0.stores.0.addressLine', addr.addressLine)
                   }}
                 />
               </div>
