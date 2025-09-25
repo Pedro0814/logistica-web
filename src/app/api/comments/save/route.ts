@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAdmin } from '@/lib/firebase-admin'
+import { db, verifyIdToken } from '@/lib/firebase-admin'
+import { FieldValue } from 'firebase-admin/firestore'
 
 export async function POST(req: NextRequest) {
   try {
@@ -7,23 +8,19 @@ export async function POST(req: NextRequest) {
     if (!opId || !text || typeof text !== 'string') {
       return NextResponse.json({ error: 'missing fields' }, { status: 400 })
     }
-    const admin = await getAdmin()
     const authHeader = req.headers.get('authorization') || ''
     const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null
     let uid = 'anon'
     try {
-      if (token) {
-        const decoded = await admin.auth().verifyIdToken(token)
-        uid = decoded.uid
-      }
+      if (token) uid = (await verifyIdToken(token)).uid
     } catch {}
-
-    const docRef = admin.firestore().collection('operations').doc(opId).collection('comments').doc()
+    if (!db) return NextResponse.json({ error: 'admin db not configured' }, { status: 500 })
+    const docRef = db.collection('operations').doc(opId).collection('comments').doc()
     await docRef.set({
       author: uid,
       text: String(text),
       scope: scope === 'global' ? 'global' : 'global',
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
     })
     return NextResponse.json({ ok: true, id: docRef.id })
   } catch (e: any) {
