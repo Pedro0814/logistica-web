@@ -72,7 +72,7 @@ export default function ExecutionPage() {
             return
           }
           if (warnings.length > 0) {
-            toast.push({ type: 'warning', message: warnings[0] })
+            toast.push({ type: 'info', message: warnings[0] })
           }
           ;(saveActual as any)({ dayId: id, patch, planned })
         }}
