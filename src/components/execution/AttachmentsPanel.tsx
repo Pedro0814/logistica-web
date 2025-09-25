@@ -2,11 +2,13 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import { Attachment } from '@/lib/hooks/attachments'
+import { formatCurrencyBRL } from '@/lib/format/currency'
 
-export default function AttachmentsPanel({ items, onUpload, onRemove, canUpload }: { items: Attachment[]; onUpload: (file: File, meta: { dayId?: string; category: Attachment['category'] }) => void; onRemove: (id: string) => void; canUpload?: boolean }) {
+export default function AttachmentsPanel({ items, onUpload, onRemove, canUpload }: { items: Attachment[]; onUpload: (file: File, meta: { dayId?: string; category: Attachment['category']; amountCents?: number }) => void; onRemove: (id: string) => void; canUpload?: boolean }) {
   const [file, setFile] = useState<File | null>(null)
   const [dayId, setDayId] = useState<string>('')
   const [category, setCategory] = useState<Attachment['category']>('outros')
+  const [amount, setAmount] = useState<string>('')
 
   return (
     <div className="rounded-xl border bg-white shadow-sm p-4 md:p-6">
@@ -23,8 +25,9 @@ export default function AttachmentsPanel({ items, onUpload, onRemove, canUpload 
             <option value="passagens">Passagens</option>
             <option value="outros">Outros</option>
           </select>
+          <input type="number" min={0} step={1} placeholder="Valor (centavos)" className="px-3 py-2 border rounded w-40" value={amount} onChange={(e)=>setAmount(e.target.value)} />
           <input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-          <button className="px-3 py-2 border rounded" onClick={() => file && onUpload(file, { dayId: dayId || undefined, category })}>Enviar</button>
+          <button className="px-3 py-2 border rounded" onClick={() => file && onUpload(file, { dayId: dayId || undefined, category, amountCents: Number(amount)||undefined })}>Enviar</button>
         </div>
       )}
       <div className="space-y-2">
@@ -37,8 +40,8 @@ export default function AttachmentsPanel({ items, onUpload, onRemove, canUpload 
                 ) : null}
               </div>
               <div>
-                <p className="text-sm">{a.category} {a.bytes ? `(${Math.round(a.bytes/1024)} KB)` : ''}</p>
-                <p className="text-[10px] text-gray-500">{a.dayId || 'sem dia'} • {a.mime}</p>
+                <p className="text-sm">{a.category} {a.amountCents!=null ? `• ${formatCurrencyBRL((a.amountCents||0)/100)}` : ''} {a.bytes ? `(${Math.round(a.bytes/1024)} KB)` : ''}</p>
+                <p className="text-[10px] text-gray-500">{a.dayId || 'sem dia'} • {a.mime} • {a.uploadedAt ? new Date(a.uploadedAt.seconds? a.uploadedAt.seconds*1000 : a.uploadedAt).toLocaleString() : ''}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
