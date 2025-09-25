@@ -528,8 +528,8 @@ export default function PlannerForm({ initial, plannerId, onSubmit }: PlannerFor
               {/* Seleção de Técnicos por cidade (exemplo) */}
               <div className="mb-4">
                 <TechMultiSelect
-                  value={form.watch(`itinerary.${cityIndex}.techIds`) || []}
-                  onChange={(ids) => form.setValue(`itinerary.${cityIndex}.techIds`, ids)}
+                  value={((form.watch as any)(`itinerary.${cityIndex}.techIds`) as string[] | undefined) || []}
+                  onChange={(ids) => (form.setValue as any)(`itinerary.${cityIndex}.techIds`, ids)}
                   options={[{ id: 't1', name: 'Téc. 1' }, { id: 't2', name: 'Téc. 2' }]}
                 />
               </div>
