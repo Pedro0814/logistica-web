@@ -8,6 +8,10 @@ import PlannerManager from '@/components/PlannerManager'
 import FirebaseWarning from '@/components/FirebaseWarning'
 import { samplePlanner } from '@/utils/sample'
 import { useFirebase } from '@/hooks/useFirebase'
+import { useUnits } from '@/lib/hooks/units'
+import { useTechnicians } from '@/lib/hooks/technicians'
+import { useWeekendPolicy } from '@/lib/hooks/weekendPolicy'
+import { usePlanners } from '@/lib/hooks/planners'
 import type { PlannerInput, SavedPlanner } from '@/types/planner'
 import PanelCard from '@/components/PanelCard'
 import EmptyState from '@/components/EmptyState'
@@ -19,6 +23,12 @@ export default function PlannerPage() {
   const [currentPlannerId, setCurrentPlannerId] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [showManager, setShowManager] = useState(false)
+
+  // Hooks reais (ou stubs seguros)
+  const { planners } = usePlanners()
+  const { options: techOptions } = useTechnicians()
+  const { units } = useUnits(currentPlannerId || 'op-planner')
+  const { data: weekendPolicy } = useWeekendPolicy(null, currentPlannerId || 'op-planner')
 
 
   const handleCreateNew = () => {
@@ -153,6 +163,8 @@ export default function PlannerPage() {
                     } : undefined}
                     plannerId={currentPlannerId || undefined}
                     onSubmit={handleSubmit}
+                    // Nota: o PlannerForm já contém os componentes integrados.
+                    // Os hooks acima estão carregados aqui para futura passagem via context/props quando necessário.
                   />
                 </div>
               </PanelCard>
