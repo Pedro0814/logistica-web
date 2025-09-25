@@ -478,8 +478,8 @@ export default function PlannerForm({ initial, plannerId, onSubmit }: PlannerFor
               <div>
                 <MoneyInput
                   label="Ajuda de Custo (extra)"
-                  valueCents={form.watch('global.extraAllowanceCents') || 0}
-                  onChange={(v) => form.setValue('global.extraAllowanceCents', v || 0)}
+                  valueCents={(form.watch as any)('global.extraAllowanceCents') || 0}
+                  onChange={(v) => (form.setValue as any)('global.extraAllowanceCents', v || 0)}
                 />
               </div>
             </div>
