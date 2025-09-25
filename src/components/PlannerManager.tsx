@@ -32,7 +32,8 @@ export default function PlannerManager({ onSelectPlanner, onExportPlanner }: Pla
 
   useEffect(() => {
     loadPlanners()
-  }, []) // Executar apenas uma vez na montagem
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleEditTitle = (planner: PlannerMetadata) => {
     setEditingId(planner.id)

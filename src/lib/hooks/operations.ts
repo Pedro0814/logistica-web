@@ -15,7 +15,7 @@ export function useOperation(operationId: string) {
     onMutate: async (patch) => {
       await client.cancelQueries({ queryKey: key })
       const snapshot = client.getQueryData<any>(key)
-      client.setQueryData<any>(key, (old) => ({ ...(old || {}), ...patch }))
+      client.setQueryData<any>(key, (old: any) => ({ ...(old || {}), ...patch }))
       return { snapshot }
     },
     onError: (_err, _vars, ctx) => {

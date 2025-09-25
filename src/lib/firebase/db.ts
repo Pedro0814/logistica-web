@@ -28,7 +28,7 @@ export async function listCollection(path: string, opts?: { where?: [string, any
     q = query(q, ...opts.order.map((o) => orderBy(o[0], o[1])))
   }
   const snap = await getDocs(q)
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+  return snap.docs.map((d) => Object.assign({ id: d.id }, d.data() as object))
 }
 
 

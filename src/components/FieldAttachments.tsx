@@ -44,7 +44,8 @@ export default function FieldAttachments({ plannerId, fieldType, className = "" 
     if (plannerId) {
       loadFieldAttachments()
     }
-  }, [plannerId, fieldType]) // Remover loadFieldAttachments da dependência
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plannerId, fieldType, loadFieldAttachments])
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes'

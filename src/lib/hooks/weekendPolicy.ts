@@ -23,7 +23,7 @@ export function useWeekendPolicy(policyId: string | null, operationId: string) {
     onMutate: async (payload) => {
       await client.cancelQueries({ queryKey: key })
       const snapshot = client.getQueryData<any>(key)
-      client.setQueryData<any>(key, (old) => ({ ...(old || {}), weeks: payload.weeks }))
+      client.setQueryData<any>(key, (old: any) => ({ ...(old || {}), weeks: payload.weeks }))
       return { snapshot }
     },
     onError: (_err, _vars, ctx) => {

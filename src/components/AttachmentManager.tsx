@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useCallback, useRef } from 'react';
+import Image from 'next/image';
 import { useFirebase } from '@/hooks/useFirebase';
 import { 
   buildUploadUrl, 
@@ -248,12 +249,12 @@ export default function AttachmentManager({ planId, readOnly = false }: Attachme
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     if (readOnly || uploading) return;
-    
+
     const files = e.dataTransfer.files;
     if (files.length > 0) {
       handleFileUpload(files);
     }
-  }, [readOnly, uploading]);
+  }, [readOnly, uploading, handleFileUpload]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -378,21 +379,23 @@ export default function AttachmentManager({ planId, readOnly = false }: Attachme
             {attachments.map((attachment) => (
               <div key={attachment.id} className="border rounded-lg p-3 space-y-2">
                 {/* Preview */}
-                <div className="aspect-video bg-gray-100 rounded overflow-hidden">
+                <div className="aspect-video bg-gray-100 rounded overflow-hidden relative">
                   {isImage(attachment.format) ? (
-                    <img
+                    <Image
                       src={attachment.thumbUrl}
-                      alt={attachment.originalFilename}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
+                      alt={attachment.originalFilename || 'preview'}
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     />
                   ) : isPdf(attachment.format) ? (
                     <div className="w-full h-full flex items-center justify-center">
-                      <img
+                      <Image
                         src={attachment.thumbUrl}
                         alt="PDF preview"
-                        className="w-full h-full object-cover"
-                        loading="lazy"
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                       />
                     </div>
                   ) : (

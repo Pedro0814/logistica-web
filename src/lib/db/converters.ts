@@ -1,5 +1,15 @@
-import { Timestamp, type FirestoreDataConverter, type DocumentData, doc, collection } from 'firebase/firestore'
+// src/lib/db/converters.ts
+import type {
+  FirestoreDataConverter,
+  DocumentData,
+  WithFieldValue,
+  PartialWithFieldValue,
+  SetOptions,
+  QueryDocumentSnapshot,
+} from 'firebase/firestore'
+import { Timestamp, collection, doc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
+import { withTimestampsForWrite } from './timestamps'
 import type {
   Operation,
   Technician,
@@ -9,42 +19,89 @@ import type {
   ActualDay,
   OperationAttachment,
   WeekendPolicy,
-  OperationWrite,
 } from './types'
-import { withTimestampsForWrite } from './timestamps'
+
+/**
+ * Nota: o SDK pode invocar toFirestore com FieldValue em qualquer campo (WithFieldValue).
+ * Aqui aceitaremos o parâmetro no formato que o SDK envia, e faremos um mapeamento
+ * manual para garantir que apenas fields válidos e timestamps sejam enviados ao Firestore.
+ */
+
+type AnyModelInput = WithFieldValue<Operation> | PartialWithFieldValue<Operation>
+
+export const operationConverter: FirestoreDataConverter<Operation> = {
+  // Aceita o formato que o SDK pode enviar (com FieldValue)
+  toFirestore(modelObject: AnyModelInput, options?: SetOptions): DocumentData {
+    // Cast seguro para manipular
+    const m = modelObject as any
+
+    // Mapeie explicitamente os campos primários do Operation.
+    // NÃO repasse objetos FieldValue para campos não-timestamp.
+    const doc: any = {
+      // string fields: só atribuí-los se forem strings (ou undefined)
+      ...(typeof m.name === 'string' ? { name: m.name } : {}),
+      ...(typeof m.client === 'string' ? { client: m.client } : {}),
+      ...(typeof m.startDate === 'string' ? { startDate: m.startDate } : {}),
+      ...(typeof m.endDate === 'string' ? { endDate: m.endDate } : {}),
+      ...(typeof m.weekendPolicyId === 'string' ? { weekendPolicyId: m.weekendPolicyId } : {}),
+      ...(typeof m.equalizeCostsAcrossTechs === 'boolean'
+        ? { equalizeCostsAcrossTechs: m.equalizeCostsAcrossTechs }
+        : {}),
+      ...(typeof m.equalizationMode === 'string' ? { equalizationMode: m.equalizationMode } : {}),
+      ...(typeof m.allowMultiTechPerInventory === 'boolean'
+        ? { allowMultiTechPerInventory: m.allowMultiTechPerInventory }
+        : {}),
+      ...(typeof m.notes === 'string' ? { notes: m.notes } : {}),
+      // adicione outros campos esperados manualmente aqui...
+    }
+
+    // Tratamento específico para enums / union types (ex: status)
+    // Se for string, atribui; se for FieldValue, ignora (não vaza FieldValue para enum)
+    if (typeof m.status === 'string') {
+      doc.status = m.status
+    }
+
+    // Agora aplique timestamps via helper. Se modelObject trouxe createdAt (FieldValue),
+    // preservamos essa intenção (por exemplo, setOnInsert).
+    const hasCreatedAt = m && (m.createdAt !== undefined && m.createdAt !== null)
+
+    // withTimestampsForWrite deverá injetar serverTimestamp() em updatedAt
+    const docWithTs = withTimestampsForWrite(doc, { touchCreated: !hasCreatedAt })
+
+    // Se o modelObject incluiu explicitamente createdAt (FieldValue), mantenha-o
+    if (hasCreatedAt) {
+      ;(docWithTs as any).createdAt = m.createdAt
+    }
+
+    // Se options indicate merge, o SDK usará a segunda assinatura; retornamos DocumentData
+    return docWithTs as DocumentData
+  },
+
+  fromFirestore(snapshot: QueryDocumentSnapshot): Operation {
+    const data = snapshot.data() as any
+    return {
+      id: snapshot.id,
+      name: (data.name as string) ?? '',
+      client: (data.client as string) ?? undefined,
+      startDate: (data.startDate as string) ?? undefined,
+      endDate: (data.endDate as string) ?? undefined,
+      weekendPolicyId: (data.weekendPolicyId as string) ?? undefined,
+      equalizeCostsAcrossTechs: (data.equalizeCostsAcrossTechs as boolean) ?? false,
+      equalizationMode: (data.equalizationMode as any) ?? 'replicate',
+      allowMultiTechPerInventory: (data.allowMultiTechPerInventory as boolean) ?? false,
+      notes: (data.notes as string) ?? undefined,
+      status: (data.status as any) ?? undefined,
+      createdAt: data.createdAt,
+      updatedAt: data.updatedAt,
+    } as Operation
+  },
+}
 
 const withTimestamps = <T>(partial: T | Partial<T>): any => ({
   ...partial,
   createdAt: partial && (partial as any).createdAt ? (partial as any).createdAt : Timestamp.now(),
   updatedAt: Timestamp.now(),
 })
-
-export const operationConverter: FirestoreDataConverter<Operation> = {
-  toFirestore(model: OperationWrite): DocumentData {
-    const { createdAt, ...rest } = model as any
-    const docData = withTimestampsForWrite(rest, { touchCreated: !createdAt })
-    if (createdAt) (docData as any).createdAt = createdAt
-    return docData
-  },
-  fromFirestore(snapshot) {
-    const data = snapshot.data() as any
-    const op: Operation = {
-      name: data.name,
-      client: data.client,
-      startDate: data.startDate,
-      endDate: data.endDate,
-      status: data.status,
-      weekendPolicyId: data.weekendPolicyId,
-      allowMultiTechPerInventory: data.allowMultiTechPerInventory,
-      equalizeCostsAcrossTechs: data.equalizeCostsAcrossTechs,
-      equalizationMode: data.equalizationMode,
-      notes: data.notes,
-      createdAt: data.createdAt,
-      updatedAt: data.updatedAt,
-    }
-    return op
-  },
-}
 
 export const technicianConverter: FirestoreDataConverter<Technician> = {
   toFirestore(model) {

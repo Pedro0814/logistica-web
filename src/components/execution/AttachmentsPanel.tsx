@@ -1,5 +1,6 @@
 "use client"
 import { useState } from 'react'
+import Image from 'next/image'
 import { Attachment } from '@/lib/hooks/attachments'
 
 export default function AttachmentsPanel({ items, onUpload, onRemove, canUpload }: { items: Attachment[]; onUpload: (file: File, meta: { dayId?: string; category: Attachment['category'] }) => void; onRemove: (id: string) => void; canUpload?: boolean }) {
@@ -30,8 +31,10 @@ export default function AttachmentsPanel({ items, onUpload, onRemove, canUpload 
         {items.map((a) => (
           <div key={a.id} className="flex items-center justify-between border rounded p-3">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gray-100 rounded overflow-hidden">
-                {a.url ? (<img src={a.url} alt={a.category} className="w-full h-full object-cover" />) : null}
+              <div className="w-10 h-10 bg-gray-100 rounded overflow-hidden relative">
+                {a.url ? (
+                  <Image src={a.url} alt={a.category} fill className="object-cover" sizes="40px" />
+                ) : null}
               </div>
               <div>
                 <p className="text-sm">{a.category} {a.bytes ? `(${Math.round(a.bytes/1024)} KB)` : ''}</p>

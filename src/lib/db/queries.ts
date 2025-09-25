@@ -1,4 +1,4 @@
-import { getDocs, orderBy, query, where } from 'firebase/firestore'
+import { getDocs, getDoc, orderBy, query, where } from 'firebase/firestore'
 import { planningCol, actualsCol, attachmentsCol, weekendPolicyDoc } from './converters'
 
 export async function listPlanningByDate(operationId: string, opts: { startISO?: string; endISO?: string; order?: 'asc' | 'desc' } = {}) {
@@ -30,7 +30,7 @@ export async function listAttachmentsByDay(operationId: string, dayId: string) {
 
 export async function getWeekendPolicy(policyId: string) {
   const ref = weekendPolicyDoc(policyId)
-  const snap = await ref.get()
+  const snap = await getDoc(ref)
   return snap.exists() ? { id: snap.id, ...snap.data() } : null
 }
 
