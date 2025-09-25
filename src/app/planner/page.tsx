@@ -16,6 +16,7 @@ import type { PlannerInput, SavedPlanner } from '@/types/planner'
 import PanelCard from '@/components/PanelCard'
 import EmptyState from '@/components/EmptyState'
 import { Button } from '@/components/ui/Button'
+import { getCurrentUserRole, canEditPlanning } from '@/lib/auth/roles'
 
 export default function PlannerPage() {
   const { savePlanner, error: firebaseError } = useFirebase()
@@ -29,6 +30,9 @@ export default function PlannerPage() {
   const { options: techOptions } = useTechnicians()
   const { units } = useUnits(currentPlannerId || 'op-planner')
   const { data: weekendPolicy } = useWeekendPolicy(null, currentPlannerId || 'op-planner')
+
+  const role = getCurrentUserRole()
+  const readOnly = !canEditPlanning(role)
 
 
   const handleCreateNew = () => {
@@ -165,7 +169,13 @@ export default function PlannerPage() {
                     onSubmit={handleSubmit}
                     // Nota: o PlannerForm já contém os componentes integrados.
                     // Os hooks acima estão carregados aqui para futura passagem via context/props quando necessário.
+                    readOnly={readOnly as any}
                   />
+                  {readOnly && (
+                    <div className="absolute -top-8 right-0 text-xs text-gray-600">
+                      Somente leitura (seu perfil: {role})
+                    </div>
+                  )}
                 </div>
               </PanelCard>
             </div>
