@@ -14,6 +14,10 @@ import StepCard from './StepCard'
 import StepFooter from './StepFooter'
 import OperationTypeToggle from './OperationTypeToggle'
 import OperationBanner from './OperationBanner'
+import CEPField from '@/components/CEPField'
+import MoneyInput from '@/components/MoneyInput'
+import TechMultiSelect from '@/components/TechMultiSelect'
+import WeekendPolicyBuilder from '@/components/WeekendPolicyBuilder'
 
 interface PlannerFormProps {
   initial?: PlannerInput
@@ -457,6 +461,29 @@ export default function PlannerForm({ initial, plannerId, onSubmit }: PlannerFor
               </div>
             </div>
           </div>
+
+          {/* CEP e Técnicos (exemplos integrados) */}
+          <div className="border-t border-gray-200 pt-6">
+            <div className="grid md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">CEP da Unidade (exemplo)</label>
+                <CEPField
+                  value={form.watch('itinerary.0.stores.0.cep') || ''}
+                  onChange={(v) => form.setValue('itinerary.0.stores.0.cep', v)}
+                  onAutoFill={(addr) => {
+                    form.setValue('itinerary.0.stores.0.addressLine', addr.addressLine)
+                  }}
+                />
+              </div>
+              <div>
+                <MoneyInput
+                  label="Ajuda de Custo (extra)"
+                  valueCents={form.watch('global.extraAllowanceCents') || 0}
+                  onChange={(v) => form.setValue('global.extraAllowanceCents', v || 0)}
+                />
+              </div>
+            </div>
+          </div>
         </div>
       </StepCard>
 
@@ -498,6 +525,14 @@ export default function PlannerForm({ initial, plannerId, onSubmit }: PlannerFor
 
           {itineraryFields.map((field, cityIndex) => (
             <div key={field.id} className="border border-gray-200 rounded-xl p-6 bg-gray-50">
+              {/* Seleção de Técnicos por cidade (exemplo) */}
+              <div className="mb-4">
+                <TechMultiSelect
+                  value={form.watch(`itinerary.${cityIndex}.techIds`) || []}
+                  onChange={(ids) => form.setValue(`itinerary.${cityIndex}.techIds`, ids)}
+                  options={[{ id: 't1', name: 'Téc. 1' }, { id: 't2', name: 'Téc. 2' }]}
+                />
+              </div>
               <div className="flex items-center justify-between mb-4">
                 <h4 className="text-lg font-semibold text-gray-800 flex items-center">
                   <svg className="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -682,6 +717,20 @@ export default function PlannerForm({ initial, plannerId, onSubmit }: PlannerFor
             </div>
           )}
         </div>
+      </StepCard>
+
+      {/* Política de Fim de Semana (exemplo integrado) */}
+      <StepCard
+        title="Política de Fim de Semana"
+        description="Defina trabalho/folga por semana"
+        helpText="Apenas um preview simples; ajuste conforme modelagem"
+        isActive={currentStep === 2}
+      >
+        <WeekendPolicyBuilder
+          weeks={[{ weekIndex: 1, saturday: 'off', sunday: 'off' }, { weekIndex: 2, saturday: 'off', sunday: 'off' }]}
+          onChange={() => {}}
+          totalWeeks={2}
+        />
       </StepCard>
 
       {/* Etapa 4: Revisão */}
