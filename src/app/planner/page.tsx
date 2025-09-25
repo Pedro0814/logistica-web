@@ -166,10 +166,9 @@ export default function PlannerPage() {
                       }
                     } : undefined}
                     plannerId={currentPlannerId || undefined}
-                    onSubmit={handleSubmit}
-                    // Nota: o PlannerForm já contém os componentes integrados.
-                    // Os hooks acima estão carregados aqui para futura passagem via context/props quando necessário.
-                    readOnly={readOnly as any}
+                  onSubmit={handleSubmit}
+                  // Nota: o PlannerForm já contém os componentes integrados.
+                  // Os hooks acima estão carregados aqui para futura passagem via context/props quando necessário.
                   />
                   {readOnly && (
                     <div className="absolute -top-8 right-0 text-xs text-gray-600">
