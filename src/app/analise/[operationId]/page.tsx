@@ -9,6 +9,8 @@ import { useState, useMemo } from 'react'
 import { Button } from '@/components/ui/Button'
 import { useOperation } from '@/lib/hooks/operations'
 import { useAttachments } from '@/lib/hooks/attachments'
+import { useToast } from '@/components/ui/Toaster'
+import { useQueryClient } from '@tanstack/react-query'
 
 export default function AnalysisPage() {
   const params = useParams()
@@ -23,6 +25,8 @@ export default function AnalysisPage() {
   const byCategory = useMemo(() => aggregateByCategory((planning as any)||[], (actuals as any)||[]), [planning, actuals])
   const byTechUnit = useMemo(() => aggregateByTechUnit((planning as any)||[], (actuals as any)||[]), [planning, actuals])
   const [comment, setComment] = useState('')
+  const toast = useToast()
+  const qc = useQueryClient()
 
   const onExportCsv = () => {
     const csv = exportToCsv(byTechUnit, ['unitId','techId','plannedCost','actualCost','plannedDays','actualDays','plannedAssets','actualAssets','deviationPct'])
@@ -97,7 +101,7 @@ export default function AnalysisPage() {
         <h2 className="font-semibold mb-2">Justificativas (Global)</h2>
         <textarea className="w-full border rounded p-2 h-28" placeholder="Descreva os principais desvios e justificativas" value={comment} onChange={(e)=>setComment(e.target.value)} />
         <div className="mt-2">
-          <SaveComment opId={operationId} text={comment} />
+          <SaveComment opId={operationId} text={comment} onSaved={() => { setComment(''); toast.push({ type: 'success', message: 'Comentário salvo' }); qc.invalidateQueries(); }} />
         </div>
       </section>
     </div>
@@ -113,16 +117,16 @@ function Kpi({ label, value }: { label: string; value: string }) {
   )
 }
 
-function SaveComment({ opId, text }: { opId: string; text: string }) {
+function SaveComment({ opId, text, onSaved }: { opId: string; text: string; onSaved?: () => void }) {
   const [saving, setSaving] = useState(false)
   const onSave = async () => {
     setSaving(true)
     try {
       const res = await fetch('/api/comments/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ opId, text, scope: 'global' }) })
       if (!res.ok) throw new Error('Falha ao salvar')
-      alert('Comentário salvo')
+      onSaved && onSaved()
     } catch (e) {
-      alert('Erro ao salvar comentário')
+      console.error(e)
     } finally {
       setSaving(false)
     }
