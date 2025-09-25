@@ -49,6 +49,23 @@ export function cumulativeSeriesByDate(planning: PlannedRow[], actuals: ActualRo
   })
 }
 
+// Robust cumulative series for costs (in cents). Fills gaps with zeros before accumulating.
+export function buildCostCumulativeSeries(planning: PlannedRow[], actuals: ActualRow[]) {
+  if (!Array.isArray(planning)) planning = []
+  if (!Array.isArray(actuals)) actuals = []
+  const dates = Array.from(new Set([...planning, ...actuals].map((r) => r.date))).sort()
+  let plannedAcc = 0
+  let actualAcc = 0
+  const series = dates.map((date) => {
+    const plannedForDay = sumPlannedCosts(planning.filter((r) => r.date === date))
+    const actualForDay = sumActualCosts(actuals.filter((r) => r.date === date))
+    plannedAcc += plannedForDay
+    actualAcc += actualForDay
+    return { date, planned: plannedAcc, actual: actualAcc }
+  })
+  return series
+}
+
 export function seriesAssetsByDate(planning: PlannedRow[], actuals: ActualRow[]) {
   const dates = Array.from(new Set([...planning, ...actuals].map((r) => r.date))).sort()
   return dates.map((d) => ({
@@ -58,12 +75,20 @@ export function seriesAssetsByDate(planning: PlannedRow[], actuals: ActualRow[])
   }))
 }
 
-export function movingAverage(values: number[], windowSize = 3) {
-  const out: number[] = []
+// Moving average that ignores null/undefined and only emits when enough samples exist.
+// Returns null when there are not enough valid points to compute a full window.
+export function movingAverage(values: Array<number | null | undefined>, windowSize = 3): Array<number | null> {
+  const out: Array<number | null> = []
   for (let i = 0; i < values.length; i++) {
     const start = Math.max(0, i - windowSize + 1)
     const slice = values.slice(start, i + 1)
-    out.push(slice.reduce((a, b) => a + b, 0) / slice.length)
+    const valid = slice.filter((v): v is number => typeof v === 'number' && Number.isFinite(v))
+    if (valid.length < windowSize) {
+      out.push(null)
+      continue
+    }
+    const avg = valid.reduce((a, b) => a + b, 0) / valid.length
+    out.push(avg)
   }
   return out
 }
