@@ -4,6 +4,10 @@ import Link from 'next/link'
 import { useState } from 'react'
 import PlannerForm from '@/components/PlannerForm'
 import PlannerManager from '@/components/PlannerManager'
+import CEPField from '@/components/CEPField'
+import MoneyInput from '@/components/MoneyInput'
+import WeekendPolicyBuilder from '@/components/WeekendPolicyBuilder'
+import TechMultiSelect, { type TechOption } from '@/components/TechMultiSelect'
 import FirebaseWarning from '@/components/FirebaseWarning'
 import { samplePlanner } from '@/utils/sample'
 import { useFirebase } from '@/hooks/useFirebase'
@@ -18,6 +22,23 @@ export default function PlannerPage() {
   const [currentPlannerId, setCurrentPlannerId] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [showManager, setShowManager] = useState(false)
+
+  // Demo/local states to showcase integrated components on the planner page
+  const [cep, setCep] = useState<string>('')
+  const [allowanceExtraCents, setAllowanceExtraCents] = useState<number | null>(0)
+  const [weeks, setWeeks] = useState<{ weekIndex: number; saturday: 'work' | 'off'; sunday: 'work' | 'off' }[]>([
+    { weekIndex: 1, saturday: 'off', sunday: 'off' },
+    { weekIndex: 2, saturday: 'off', sunday: 'off' },
+    { weekIndex: 3, saturday: 'off', sunday: 'off' },
+    { weekIndex: 4, saturday: 'off', sunday: 'off' },
+  ])
+  const totalWeeks = 4
+  const [selectedTechs, setSelectedTechs] = useState<string[]>([])
+  const techOptions: TechOption[] = [
+    { id: 'tech-1', name: 'Téc. 1' },
+    { id: 'tech-2', name: 'Téc. 2' },
+    { id: 'tech-3', name: 'Téc. 3' },
+  ]
 
   const handleCreateNew = () => {
     setCurrentPlanner(null)
@@ -173,17 +194,40 @@ export default function PlannerPage() {
             </div>
           )}
 
-          {/* Info Cards */}
+          {/* Integrated demo blocks for CEP, MoneyInput, WeekendPolicy, TechMultiSelect */}
           {!showForm && !showManager && (
-            <div className="grid md:grid-cols-3 gap-6">
-              <PanelCard title="Técnico">
-                <p className="text-gray-600 text-sm">Defina o nome do técnico, cidade de origem e produtividade.</p>
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <PanelCard title="Endereço (CEP)">
+                  <div className="pt-2">
+                    <CEPField
+                      value={cep}
+                      onChange={setCep}
+                      onAutoFill={() => { /* no-op demo */ }}
+                    />
+                  </div>
+                </PanelCard>
+                <PanelCard title="Valores">
+                  <div className="pt-2">
+                    <MoneyInput
+                      label="Ajuda de Custo (extra)"
+                      valueCents={allowanceExtraCents}
+                      onChange={setAllowanceExtraCents}
+                    />
+                  </div>
+                </PanelCard>
+              </div>
+
+              <PanelCard title="Regras de Final de Semana">
+                <div className="pt-2">
+                  <WeekendPolicyBuilder weeks={weeks} onChange={setWeeks} totalWeeks={totalWeeks} />
+                </div>
               </PanelCard>
-              <PanelCard title="Itinerário">
-                <p className="text-gray-600 text-sm">Configure cidades, hotéis, custos de transporte e unidades.</p>
-              </PanelCard>
-              <PanelCard title="Custos">
-                <p className="text-gray-600 text-sm">Controle hospedagem, alimentação, transporte e diárias técnicas.</p>
+
+              <PanelCard title="Técnicos">
+                <div className="pt-2">
+                  <TechMultiSelect value={selectedTechs} onChange={setSelectedTechs} options={techOptions} />
+                </div>
               </PanelCard>
             </div>
           )}
