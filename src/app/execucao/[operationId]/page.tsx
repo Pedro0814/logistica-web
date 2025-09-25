@@ -64,14 +64,17 @@ export default function ExecutionPage() {
           if (readOnly) return
           const plan = (planning as any)?.find((p: any) => p.id === id)
           const planned = { assets: plan?.plannedAssets || 0, costs: plan?.plannedCosts || {} }
-          const { ok, errors } = validateRowPatch(patch, planned)
+          const { ok, errors, warnings } = validateRowPatch(patch, planned)
           if (!ok) {
             setErrorCells((s) => ({ ...s, [id]: true }))
             toast.push({ type: 'error', message: errors[0] || 'Valor inválido' })
             setTimeout(() => setErrorCells((s) => { const n = { ...s }; delete n[id]; return n }), CELL_ERROR_DURATION_MS)
             return
           }
-          saveActual(id, patch)
+          if (warnings.length > 0) {
+            toast.push({ type: 'warning', message: warnings[0] })
+          }
+          ;(saveActual as any)({ dayId: id, patch, planned })
         }}
       />
 

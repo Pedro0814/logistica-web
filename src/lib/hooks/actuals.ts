@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { listCollection, setDocData } from '@/lib/firebase/db'
 import { serverTimestamp } from 'firebase/firestore'
 import { useDebouncedCallback } from '@/lib/hooks/_debounce'
+import { validateRowPatch } from '@/lib/validation/actuals'
 
 export type ActualCostsCents = {
   ticketsCents?: number
@@ -43,18 +44,28 @@ export function useActuals(operationId: string, range: { startISO: string; endIS
     },
   })
 
-  const doSave = async (dayId: string, patch: Partial<ActualRow> & { date?: string }) => {
+  const doSave = async (dayId: string, patch: Partial<ActualRow> & { date?: string }, planned?: { assets?: number; costs?: Record<string, number> }) => {
     if (!operationId || !dayId) return
+    // validações
+    const validation = validateRowPatch(patch, planned || {})
+    if (validation.errors.length > 0) {
+      const err = new Error(validation.errors[0]) as any
+      err.__validationErrors = validation.errors
+      throw err
+    }
     const payload: any = {
       ...patch,
       updatedAt: serverTimestamp(),
       meta: { filledAt: serverTimestamp() },
     }
+    if (validation.warnings.length > 0) {
+      payload.meta = { ...(payload.meta||{}), warning: true }
+    }
     await setDocData(`operations/${operationId}/actuals/${dayId}`, payload, true)
   }
 
   const mutation = useMutation({
-    mutationFn: ({ dayId, patch }: { dayId: string; patch: Partial<ActualRow> }) => doSave(dayId, patch),
+    mutationFn: ({ dayId, patch, planned }: { dayId: string; patch: Partial<ActualRow>; planned?: { assets?: number; costs?: Record<string, number> } }) => doSave(dayId, patch, planned),
     onMutate: async ({ dayId, patch }) => {
       await qc.cancelQueries({ queryKey: key })
       const prev = qc.getQueryData<ActualRow[]>(key) || []
