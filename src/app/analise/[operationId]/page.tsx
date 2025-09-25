@@ -7,10 +7,13 @@ import { aggregateTotals, aggregateByCategory, aggregateByTechUnit, exportToCsv 
 import DeviationChart from '@/components/DeviationChart'
 import { useState, useMemo } from 'react'
 import { Button } from '@/components/ui/Button'
+import { buildRows as buildCsvRows, toCsv } from '@/lib/export/csv'
+import { exportAnalysisPdf } from '@/lib/export/pdf'
 import { useOperation } from '@/lib/hooks/operations'
 import { useAttachments } from '@/lib/hooks/attachments'
 import { useToast } from '@/components/ui/Toaster'
 import { useQueryClient } from '@tanstack/react-query'
+import CommentsPanel from '@/components/CommentsPanel'
 
 export default function AnalysisPage() {
   const params = useParams()
@@ -29,7 +32,8 @@ export default function AnalysisPage() {
   const qc = useQueryClient()
 
   const onExportCsv = () => {
-    const csv = exportToCsv(byTechUnit, ['unitId','techId','plannedCost','actualCost','plannedDays','actualDays','plannedAssets','actualAssets','deviationPct'])
+    const rows = buildCsvRows((planning as any)||[], (actuals as any)||[])
+    const csv = toCsv(rows)
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -38,14 +42,17 @@ export default function AnalysisPage() {
     a.click()
     URL.revokeObjectURL(url)
   }
+  const onExportPdf = async () => {
+    await exportAnalysisPdf('#analysis-root')
+  }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 md:px-6 py-8 space-y-6">
+    <div id="analysis-root" className="mx-auto max-w-6xl px-4 md:px-6 py-8 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Análise — {(op as any)?.name || operationId}</h1>
         <div className="flex gap-2">
           <Button onClick={onExportCsv}>Exportar CSV</Button>
-          <Button variant="outline" onClick={() => window.print()}>Exportar PDF</Button>
+          <Button variant="outline" onClick={onExportPdf}>Exportar PDF</Button>
         </div>
       </div>
 
@@ -95,6 +102,9 @@ export default function AnalysisPage() {
             </tbody>
           </table>
         </div>
+        <div className="mt-4">
+          <CommentsPanel operationId={operationId} initialScope="unit" />
+        </div>
       </section>
 
       <section className="rounded-xl border bg-white p-4">
@@ -102,6 +112,9 @@ export default function AnalysisPage() {
         <textarea className="w-full border rounded p-2 h-28" placeholder="Descreva os principais desvios e justificativas" value={comment} onChange={(e)=>setComment(e.target.value)} />
         <div className="mt-2">
           <SaveComment opId={operationId} text={comment} onSaved={() => { setComment(''); toast.push({ type: 'success', message: 'Comentário salvo' }); qc.invalidateQueries(); }} />
+        </div>
+        <div className="mt-4">
+          <CommentsPanel operationId={operationId} initialScope="global" />
         </div>
       </section>
     </div>
