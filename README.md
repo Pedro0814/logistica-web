@@ -107,7 +107,30 @@ npm run build
 
 # Deploy no Vercel
 vercel --prod
+
+# Emuladores Firebase (Firestore + Functions)
+npm run emulators
+
+# Cloud Functions
+npm run functions:build
+npm run functions:serve
+npm run functions:deploy
 ```
+
+### Cloud Functions (rollups analyticsCache)
+
+Triggers em `operations/{operationId}/planning/{dayId}` e `operations/{operationId}/actuals/{dayId}` recalculam agregados e gravam em `analyticsCache/{operationId}`.
+
+Agregados:
+- byDay: totais plan/real por data
+- byUnit: totais plan/real por unidade
+- byTech: totais plan/real por técnico (custos repartidos pelos técnicos do dia)
+- byCategory: totais globais por categoria de custo
+
+Teste local:
+1. `npm run functions:build`
+2. `npm run emulators`
+3. Edite um doc em `operations/<op>/actuals` no emulador → verifique `analyticsCache/<op>`.
 
 ## Segurança
 
