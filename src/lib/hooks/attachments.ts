@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { listCollection, setDocData, updateDocData } from '@/lib/firebase/db'
 import { serverTimestamp, doc, deleteDoc } from 'firebase/firestore'
 import { uploadUnsigned } from '@/lib/cloudinary/upload'
+import { useAuth } from '@/contexts/AuthContext'
 
 export type Attachment = {
   id: string
@@ -10,15 +11,18 @@ export type Attachment = {
   unitId?: string
   techId?: string
   category: 'hotel' | 'alimentacao' | 'transporte' | 'passagens' | 'outros'
+  amountCents?: number
   url: string
   publicId: string
   bytes: number
   mime: string
   uploadedAt: any
-  userId?: string
+  uploadedBy?: string
+  deletedAt?: any
 }
 
 export function useAttachments(operationId: string, dayId?: string) {
+  const { user } = useAuth()
   const qc = useQueryClient()
   const key = useMemo(() => ['attachments', operationId, dayId || 'all'], [operationId, dayId])
 
@@ -29,13 +33,13 @@ export function useAttachments(operationId: string, dayId?: string) {
       const filters: any = { order: [['uploadedAt', 'desc']] }
       if (dayId) filters.where = [['dayId', '==', dayId]]
       const rows = await listCollection(`operations/${operationId}/attachments`, filters)
-      return rows as unknown as Attachment[]
+      return (rows as any[]).filter((r) => !r.deletedAt) as unknown as Attachment[]
     },
   })
 
   const upload = useMutation({
-    mutationFn: async ({ file, meta }: { file: File; meta: { dayId?: string; unitId?: string; techId?: string; category: Attachment['category'] } }) => {
-      const up = await uploadUnsigned(file)
+    mutationFn: async ({ file, meta }: { file: File; meta: { dayId?: string; unitId?: string; techId?: string; category: Attachment['category']; amountCents?: number } }) => {
+      const up = await uploadUnsigned(file, { category: meta.category, amountCents: meta.amountCents })
       const id = crypto.randomUUID()
       await setDocData(`operations/${operationId}/attachments/${id}`, {
         id,
@@ -43,11 +47,13 @@ export function useAttachments(operationId: string, dayId?: string) {
         unitId: meta.unitId || null,
         techId: meta.techId || null,
         category: meta.category,
+        amountCents: meta.amountCents ?? null,
         url: up.url,
         publicId: up.publicId,
         bytes: up.bytes,
         mime: up.mime,
         uploadedAt: serverTimestamp(),
+        uploadedBy: user?.uid || null,
       }, true)
       return { id, ...up, ...meta } as any
     },
@@ -61,10 +67,12 @@ export function useAttachments(operationId: string, dayId?: string) {
         bytes: file.size,
         mime: file.type,
         category: meta.category,
+        amountCents: meta.amountCents,
         dayId: meta.dayId,
         unitId: meta.unitId,
         techId: meta.techId,
         uploadedAt: Date.now(),
+        uploadedBy: 'you',
       }
       qc.setQueryData(key, [temp, ...prev])
       return { prev }

@@ -1,4 +1,7 @@
-export async function uploadUnsigned(file: File): Promise<{ url: string; publicId: string; bytes: number; mime: string }> {
+export async function uploadUnsigned(
+  file: File,
+  _opts?: { category?: string; amountCents?: number }
+): Promise<{ url: string; publicId: string; bytes: number; mime: string }> {
   const cloud = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
   const preset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET
   if (!cloud || !preset) throw new Error('Cloudinary env não configurado')

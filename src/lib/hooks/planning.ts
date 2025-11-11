@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { listCollection, setDocData } from '@/lib/firebase/db'
 import { useDebouncedCallback } from './_debounce'
 import { optimisticListKey } from './_optimistic'
+import { validatePlanningPatch } from '@/lib/validation/planning'
 
 export function usePlanning(operationId: string, range: { startISO: string; endISO: string }) {
   const key = ['planning', operationId, range.startISO, range.endISO]
@@ -19,6 +20,12 @@ export function usePlanning(operationId: string, range: { startISO: string; endI
   const client = useQueryClient()
   const upsert = useMutation({
     mutationFn: async ({ dayId, patch }: { dayId?: string; patch: any }) => {
+      const validation = validatePlanningPatch(patch)
+      if (!validation.ok) {
+        const err = new Error(validation.errors[0] || 'Planejamento inválido') as any
+        ;(err as any).__validationErrors = validation.errors
+        throw err
+      }
       const id = dayId || crypto.randomUUID()
       await setDocData(`operations/${operationId}/planning/${id}`, { ...patch, updatedAt: new Date(), createdAt: new Date() }, true)
       return { id, ...patch }

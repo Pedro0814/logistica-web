@@ -8,17 +8,32 @@ import PlannerManager from '@/components/PlannerManager'
 import FirebaseWarning from '@/components/FirebaseWarning'
 import { samplePlanner } from '@/utils/sample'
 import { useFirebase } from '@/hooks/useFirebase'
+import { useUnits } from '@/lib/hooks/units'
+import { useTechnicians } from '@/lib/hooks/technicians'
+import { useWeekendPolicy } from '@/lib/hooks/weekendPolicy'
+import { usePlanners } from '@/lib/hooks/planners'
 import type { PlannerInput, SavedPlanner } from '@/types/planner'
 import PanelCard from '@/components/PanelCard'
 import EmptyState from '@/components/EmptyState'
 import { Button } from '@/components/ui/Button'
+import { getCurrentUserRole, canEditPlanning } from '@/lib/auth/roles'
+import ProtectedRoute from '@/components/auth/ProtectedRoute'
 
-export default function PlannerPage() {
+function PlannerPageContent() {
   const { savePlanner, error: firebaseError } = useFirebase()
   const [currentPlanner, setCurrentPlanner] = useState<PlannerInput | null>(null)
   const [currentPlannerId, setCurrentPlannerId] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [showManager, setShowManager] = useState(false)
+
+  // Hooks reais (ou stubs seguros)
+  const { planners } = usePlanners()
+  const { options: techOptions } = useTechnicians()
+  const { units } = useUnits(currentPlannerId || 'op-planner')
+  const { data: weekendPolicy } = useWeekendPolicy(null, currentPlannerId || 'op-planner')
+
+  const role = getCurrentUserRole()
+  const readOnly = !canEditPlanning(role)
 
 
   const handleCreateNew = () => {
@@ -152,8 +167,15 @@ export default function PlannerPage() {
                       }
                     } : undefined}
                     plannerId={currentPlannerId || undefined}
-                    onSubmit={handleSubmit}
+                  onSubmit={handleSubmit}
+                  // Nota: o PlannerForm já contém os componentes integrados.
+                  // Os hooks acima estão carregados aqui para futura passagem via context/props quando necessário.
                   />
+                  {readOnly && (
+                    <div className="absolute -top-8 right-0 text-xs text-gray-600">
+                      Somente leitura (seu perfil: {role})
+                    </div>
+                  )}
                 </div>
               </PanelCard>
             </div>
@@ -180,5 +202,13 @@ export default function PlannerPage() {
         </main>
       </div>
     </div>
+  )
+}
+
+export default function PlannerPage() {
+  return (
+    <ProtectedRoute>
+      <PlannerPageContent />
+    </ProtectedRoute>
   )
 }

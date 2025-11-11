@@ -1,11 +1,12 @@
 "use client"
-import { cumulativeSeriesByDate, seriesAssetsByDate, movingAverage } from '@/lib/execution/metrics'
+import { buildCostCumulativeSeries, seriesAssetsByDate, movingAverage } from '@/lib/execution/metrics'
+import { formatCurrencyBRL } from '@/lib/format/currency'
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid, BarChart, Bar } from 'recharts'
 
 export default function RealtimeCharts({ planning, actuals }: { planning: any[]; actuals: any[] }) {
-  const costSeries = cumulativeSeriesByDate(planning, actuals)
-  const assetSeries = seriesAssetsByDate(planning, actuals)
-  const avg = movingAverage(assetSeries.map((d) => d.actual), 3)
+  const costSeries = buildCostCumulativeSeries(planning as any, actuals as any)
+  const assetSeries = seriesAssetsByDate(planning as any, actuals as any)
+  const avg = movingAverage(assetSeries.map((d) => d?.actual ?? null), 3)
   const assetSeriesWithAvg = assetSeries.map((d, i) => ({ ...d, avg: avg[i] }))
 
   return (
@@ -18,7 +19,7 @@ export default function RealtimeCharts({ planning, actuals }: { planning: any[];
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="date" />
               <YAxis />
-              <Tooltip />
+              <Tooltip formatter={(v:number)=> formatCurrencyBRL((Number(v||0))/100)} />
               <Legend />
               <Line type="monotone" dataKey="planned" stroke="#8884d8" name="Plan (acum)" />
               <Line type="monotone" dataKey="actual" stroke="#82ca9d" name="Real (acum)" />
@@ -35,7 +36,7 @@ export default function RealtimeCharts({ planning, actuals }: { planning: any[];
               <Legend />
               <Bar dataKey="planned" fill="#8884d8" name="Bens Plan/dia" />
               <Bar dataKey="actual" fill="#82ca9d" name="Bens Real/dia" />
-              <Line type="monotone" dataKey="avg" stroke="#ef4444" name="Média móvel (3d)" />
+              <Line type="monotone" dataKey="avg" stroke="#ef4444" name="Média móvel (3d)" dot={false} isAnimationActive={false} />
             </BarChart>
           </ResponsiveContainer>
         </div>

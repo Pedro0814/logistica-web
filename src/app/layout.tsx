@@ -1,11 +1,11 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
-import Navbar from '@/components/Navbar'
 import QueryProvider from './QueryProvider'
 import ToastProvider from '@/components/ui/Toaster'
 import { ThemeProvider } from 'next-themes'
-import BrandFooter from '@/components/BrandFooter'
+import { AuthProvider } from '@/contexts/AuthContext'
+import LayoutWrapper from '@/components/LayoutWrapper'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -28,15 +28,15 @@ export default function RootLayout({
     <html lang="pt-BR">
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
-          <QueryProvider>
-            <ToastProvider>
-              <Navbar />
-              <main>
-                {children}
-              </main>
-              <BrandFooter />
-            </ToastProvider>
-          </QueryProvider>
+          <AuthProvider>
+            <QueryProvider>
+              <ToastProvider>
+                <LayoutWrapper>
+                  {children}
+                </LayoutWrapper>
+              </ToastProvider>
+            </QueryProvider>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

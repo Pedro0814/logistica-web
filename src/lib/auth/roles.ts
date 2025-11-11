@@ -17,4 +17,12 @@ export function canUploadAttachments(role: UserRole): boolean {
   return role === 'admin' || role === 'coord' || role === 'tech'
 }
 
+export function canEditPlanning(role: UserRole): boolean {
+  return role === 'admin' || role === 'coord'
+}
+
+export function canReadEverything(role: UserRole): boolean {
+  return role === 'admin' || role === 'coord' || role === 'tech' || role === 'viewer'
+}
+
 

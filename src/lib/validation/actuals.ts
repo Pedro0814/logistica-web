@@ -20,6 +20,7 @@ export function validateCapAgainstPlan(actual: number, planned: number) {
 
 export function validateRowPatch(patch: any, planned: { assets?: number; costs?: MoneyMap }) {
   const errors: string[] = []
+  const warnings: string[] = []
   if (patch.actualAssets !== undefined && !validateAssetsNonNegative(patch.actualAssets)) {
     errors.push('Bens/dia deve ser inteiro não negativo.')
   }
@@ -27,10 +28,10 @@ export function validateRowPatch(patch: any, planned: { assets?: number; costs?:
     for (const [k, v] of Object.entries(patch.actualCosts as MoneyMap)) {
       if (!validateMoneyNonNegative(v)) errors.push(`Valor inválido em ${k}.`)
       const plan = (planned.costs?.[k] as number) || 0
-      if (!validateCapAgainstPlan(Number(v), plan)) errors.push(`Valor em ${k} excede o limite (${EXECUTION_CAP_MULTIPLIER}x do planejado).`)
+      if (!validateCapAgainstPlan(Number(v), plan)) warnings.push(`Valor em ${k} excede o limite (${EXECUTION_CAP_MULTIPLIER}x do planejado).`)
     }
   }
-  return { ok: errors.length === 0, errors }
+  return { ok: errors.length === 0, errors, warnings }
 }
 
 
