@@ -8,12 +8,10 @@ import { useRouter } from 'next/navigation'
 export default function LoginForm() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [displayName, setDisplayName] = useState('')
-  const [isSignUp, setIsSignUp] = useState(false)
   const [isResetting, setIsResetting] = useState(false)
   const [resetEmail, setResetEmail] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const { login, signup, resetPassword, error, clearError } = useAuth()
+  const { login, resetPassword, error, clearError } = useAuth()
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -22,11 +20,7 @@ export default function LoginForm() {
     setIsLoading(true)
 
     try {
-      if (isSignUp) {
-        await signup(email, password, displayName)
-      } else {
-        await login(email, password)
-      }
+      await login(email, password)
       router.push('/')
     } catch (err) {
       console.error('Erro de autenticação:', err)
@@ -106,31 +100,13 @@ export default function LoginForm() {
     <div className="w-full max-w-md mx-auto">
       <div className="bg-white rounded-2xl shadow-lg p-8">
         <h2 className="text-2xl font-bold text-gray-900 mb-2">
-          {isSignUp ? 'Criar Conta' : 'Entrar'}
+          Entrar
         </h2>
         <p className="text-sm text-gray-600 mb-6">
-          {isSignUp 
-            ? 'Crie sua conta para começar a usar o sistema' 
-            : 'Acesse sua conta para continuar'}
+          Acesse sua conta para continuar
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {isSignUp && (
-            <div>
-              <label htmlFor="display-name" className="block text-sm font-semibold text-gray-700 mb-2">
-                Nome
-              </label>
-              <input
-                id="display-name"
-                type="text"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                placeholder="Seu nome"
-              />
-            </div>
-          )}
-
           <div>
             <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
               Email
@@ -160,9 +136,6 @@ export default function LoginForm() {
               className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
               placeholder="••••••••"
             />
-            {isSignUp && (
-              <p className="mt-1 text-xs text-gray-500">Mínimo de 6 caracteres</p>
-            )}
           </div>
 
           {error && (
@@ -176,31 +149,19 @@ export default function LoginForm() {
             disabled={isLoading}
             className="w-full bg-indigo-600 text-white hover:bg-indigo-700"
           >
-            {isLoading ? 'Carregando...' : isSignUp ? 'Criar Conta' : 'Entrar'}
+            {isLoading ? 'Carregando...' : 'Entrar'}
           </Button>
 
           <div className="text-center space-y-2">
-            {!isSignUp && (
-              <button
-                type="button"
-                onClick={() => setIsResetting(true)}
-                className="text-sm text-indigo-600 hover:text-indigo-800"
-              >
-                Esqueceu sua senha?
-              </button>
-            )}
-            <div className="text-sm text-gray-600">
-              {isSignUp ? 'Já tem uma conta? ' : 'Não tem uma conta? '}
-              <button
-                type="button"
-                onClick={() => {
-                  setIsSignUp(!isSignUp)
-                  clearError()
-                }}
-                className="text-indigo-600 hover:text-indigo-800 font-semibold"
-              >
-                {isSignUp ? 'Entrar' : 'Criar conta'}
-              </button>
+            <button
+              type="button"
+              onClick={() => setIsResetting(true)}
+              className="text-sm text-indigo-600 hover:text-indigo-800"
+            >
+              Esqueceu sua senha?
+            </button>
+            <div className="text-xs text-gray-500">
+              Acesso restrito. Contas são criadas pela administração.
             </div>
           </div>
         </form>

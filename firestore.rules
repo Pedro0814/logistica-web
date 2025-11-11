@@ -2,6 +2,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function isSignedIn() { return request.auth != null; }
+    function isActiveUser() { return request.auth != null && exists(/databases/$(database)/documents/users/$(request.auth.uid)); }
     function role() { return request.auth.token.role; } // 'admin' | 'coord' | 'tech'
     function isAdmin() { return role() == 'admin'; }
     function isCoord() { return role() == 'coord'; }
@@ -20,22 +21,22 @@ service cloud.firestore {
       // Leitura: permite autenticado
       // Se tem role: valida por role/assignment (produção)
       // Se não tem role: permite qualquer autenticado (dev/local)
-      allow read: if isSignedIn() && (
+      allow read: if isActiveUser() && (
         role() == null || 
         isAdmin() || 
         isCoord() || 
         (isTech() && isAssignedTech(operationId))
       );
       // Escrita: admin/coord OU qualquer autenticado em dev
-      allow create, update, delete: if isSignedIn() && (
+      allow create, update, delete: if isActiveUser() && (
         role() == null || 
         isAdmin() || 
         isCoord()
       );
 
       match /planning/{dayId} {
-        allow read: if isSignedIn() && (role() == null || isAdmin() || isCoord() || (isTech() && isAssignedTech(operationId)));
-        allow create, update, delete: if isSignedIn() && (role() == null || isAdmin() || isCoord());
+        allow read: if isActiveUser() && (role() == null || isAdmin() || isCoord() || (isTech() && isAssignedTech(operationId)));
+        allow create, update, delete: if isActiveUser() && (role() == null || isAdmin() || isCoord());
         allow create, update: if request.resource.data.date is string && isISODate(request.resource.data.date)
                               && arrayOfStrings(request.resource.data.techIds)
                               && request.resource.data.plannedAssets is int && request.resource.data.plannedAssets >= 0
@@ -43,22 +44,22 @@ service cloud.firestore {
       }
 
       match /actuals/{dayId} {
-        allow read: if isSignedIn() && (role() == null || isAdmin() || isCoord() || (isTech() && isAssignedTech(operationId)));
-        allow create, update: if isSignedIn() && (role() == null || isAdmin() || isCoord() || (isTech() && isAssignedTech(operationId)))
+        allow read: if isActiveUser() && (role() == null || isAdmin() || isCoord() || (isTech() && isAssignedTech(operationId)));
+        allow create, update: if isActiveUser() && (role() == null || isAdmin() || isCoord() || (isTech() && isAssignedTech(operationId)))
                               && request.resource.data.date is string && isISODate(request.resource.data.date)
                               && arrayOfStrings(request.resource.data.techIds)
                               && request.resource.data.actualAssets is int && request.resource.data.actualAssets >= 0
                               && validMoney(request.resource.data.actualCosts)
                               && request.resource.data.meta is map
                               && request.resource.data.meta.filledBy == request.auth.uid;
-        allow delete: if isSignedIn() && (role() == null || isAdmin() || isCoord());
+        allow delete: if isActiveUser() && (role() == null || isAdmin() || isCoord());
       }
 
       match /attachments/{attachmentId} {
         // Leitura: permite se autenticado
         // Se tem role no token: valida por role/assignment (produção)
         // Se não tem role: permite qualquer autenticado (dev/local)
-        allow read: if isSignedIn() && (
+        allow read: if isActiveUser() && (
           role() == null || 
           isAdmin() || 
           isCoord() || 
@@ -66,7 +67,7 @@ service cloud.firestore {
         );
         
         // Criação: permite autenticado E valida dados obrigatórios
-        allow create: if isSignedIn() && (
+        allow create: if isActiveUser() && (
           role() == null || 
           isAdmin() || 
           isCoord() || 
@@ -77,7 +78,7 @@ service cloud.firestore {
                       && request.resource.data.uploadedAt != null;
         
         // Update/Delete: permite autor OU admin/coord (ou qualquer autenticado em dev)
-        allow update, delete: if isSignedIn() && (
+        allow update, delete: if isActiveUser() && (
           // Sem role (dev): permite qualquer autenticado
           role() == null ||
           // Com role: admin/coord sempre, ou tech se for o autor
@@ -91,44 +92,44 @@ service cloud.firestore {
       }
 
       match /assignments/{assignmentId} {
-        allow read: if isSignedIn() && (role() == null || isAdmin() || isCoord() || (isTech() && isAssignedTech(operationId)));
-        allow create, update, delete: if isSignedIn() && (role() == null || isAdmin() || isCoord());
+        allow read: if isActiveUser() && (role() == null || isAdmin() || isCoord() || (isTech() && isAssignedTech(operationId)));
+        allow create, update, delete: if isActiveUser() && (role() == null || isAdmin() || isCoord());
       }
 
       match /comments/{commentId} {
-        allow read: if isSignedIn() && (role() == null || isAdmin() || isCoord() || (isTech() && isAssignedTech(operationId)));
-        allow create: if isSignedIn() && (role() == null || isAdmin() || isCoord() || (isTech() && isAssignedTech(operationId)));
-        allow update, delete: if isSignedIn() && (role() == null || isAdmin() || isCoord() || (isTech() && isAssignedTech(operationId) && resource.data.author == request.auth.uid));
+        allow read: if isActiveUser() && (role() == null || isAdmin() || isCoord() || (isTech() && isAssignedTech(operationId)));
+        allow create: if isActiveUser() && (role() == null || isAdmin() || isCoord() || (isTech() && isAssignedTech(operationId)));
+        allow update, delete: if isActiveUser() && (role() == null || isAdmin() || isCoord() || (isTech() && isAssignedTech(operationId) && resource.data.author == request.auth.uid));
       }
     }
 
     match /technicians/{techId} {
-      allow read: if isSignedIn() && (role() == null || isAdmin() || isCoord());
-      allow create, update, delete: if isSignedIn() && (role() == null || isAdmin());
+      allow read: if isActiveUser() && (role() == null || isAdmin() || isCoord());
+      allow create, update, delete: if isActiveUser() && (role() == null || isAdmin());
     }
 
     match /units/{unitId} {
-      allow read: if isSignedIn();
-      allow create, update, delete: if isSignedIn() && (role() == null || isAdmin() || isCoord());
+      allow read: if isActiveUser();
+      allow create, update, delete: if isActiveUser() && (role() == null || isAdmin() || isCoord());
     }
 
     match /weekendPolicies/{policyId} {
-      allow read: if isSignedIn();
-      allow create, update: if isSignedIn() && (role() == null || isAdmin() || isCoord())
+      allow read: if isActiveUser();
+      allow create, update: if isActiveUser() && (role() == null || isAdmin() || isCoord())
                             && request.resource.data.name is string
                             && request.resource.data.weeks is list;
-      allow delete: if isSignedIn() && (role() == null || isAdmin());
+      allow delete: if isActiveUser() && (role() == null || isAdmin());
     }
 
     // Legacy/plans area used by Planner page
     match /plans/{planId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update, delete: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
+      allow read: if isActiveUser();
+      allow create: if isActiveUser();
+      allow update, delete: if isActiveUser() && resource.data.ownerUid == request.auth.uid;
       match /attachments/{attachmentId} {
-        allow read: if isSignedIn();
-        allow create: if isSignedIn() && request.resource.data.ownerUid == request.auth.uid;
-        allow delete, update: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
+        allow read: if isActiveUser();
+        allow create: if isActiveUser() && request.resource.data.ownerUid == request.auth.uid;
+        allow delete, update: if isActiveUser() && resource.data.ownerUid == request.auth.uid;
       }
     }
   }
