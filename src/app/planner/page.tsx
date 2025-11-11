@@ -17,8 +17,9 @@ import PanelCard from '@/components/PanelCard'
 import EmptyState from '@/components/EmptyState'
 import { Button } from '@/components/ui/Button'
 import { getCurrentUserRole, canEditPlanning } from '@/lib/auth/roles'
+import ProtectedRoute from '@/components/auth/ProtectedRoute'
 
-export default function PlannerPage() {
+function PlannerPageContent() {
   const { savePlanner, error: firebaseError } = useFirebase()
   const [currentPlanner, setCurrentPlanner] = useState<PlannerInput | null>(null)
   const [currentPlannerId, setCurrentPlannerId] = useState<string | null>(null)
@@ -201,5 +202,13 @@ export default function PlannerPage() {
         </main>
       </div>
     </div>
+  )
+}
+
+export default function PlannerPage() {
+  return (
+    <ProtectedRoute>
+      <PlannerPageContent />
+    </ProtectedRoute>
   )
 }

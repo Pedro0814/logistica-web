@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { listCollection, setDocData, updateDocData } from '@/lib/firebase/db'
 import { serverTimestamp, doc, deleteDoc } from 'firebase/firestore'
 import { uploadUnsigned } from '@/lib/cloudinary/upload'
+import { useAuth } from '@/contexts/AuthContext'
 
 export type Attachment = {
   id: string
@@ -21,6 +22,7 @@ export type Attachment = {
 }
 
 export function useAttachments(operationId: string, dayId?: string) {
+  const { user } = useAuth()
   const qc = useQueryClient()
   const key = useMemo(() => ['attachments', operationId, dayId || 'all'], [operationId, dayId])
 
@@ -51,7 +53,7 @@ export function useAttachments(operationId: string, dayId?: string) {
         bytes: up.bytes,
         mime: up.mime,
         uploadedAt: serverTimestamp(),
-        uploadedBy: (globalThis as any)?.__uid || null,
+        uploadedBy: user?.uid || null,
       }, true)
       return { id, ...up, ...meta } as any
     },

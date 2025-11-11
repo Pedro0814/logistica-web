@@ -4,6 +4,7 @@ import { listCollection, setDocData } from '@/lib/firebase/db'
 import { serverTimestamp } from 'firebase/firestore'
 import { useDebouncedCallback } from '@/lib/hooks/_debounce'
 import { validateRowPatch } from '@/lib/validation/actuals'
+import { useAuth } from '@/contexts/AuthContext'
 
 export type ActualCostsCents = {
   ticketsCents?: number
@@ -25,6 +26,7 @@ export type ActualRow = {
 }
 
 export function useActuals(operationId: string, range: { startISO: string; endISO: string }) {
+  const { user } = useAuth()
   const qc = useQueryClient()
   const key = useMemo(() => ['actuals', operationId, range.startISO, range.endISO], [operationId, range.startISO, range.endISO])
 
@@ -56,7 +58,10 @@ export function useActuals(operationId: string, range: { startISO: string; endIS
     const payload: any = {
       ...patch,
       updatedAt: serverTimestamp(),
-      meta: { filledAt: serverTimestamp() },
+      meta: { 
+        filledBy: user?.uid || null,
+        filledAt: serverTimestamp() 
+      },
     }
     if (validation.warnings.length > 0) {
       payload.meta = { ...(payload.meta||{}), warning: true }

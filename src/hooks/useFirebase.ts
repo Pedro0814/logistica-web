@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
-import { onAuthStateChanged, type User } from 'firebase/auth'
-import { auth, db, storage } from '@/lib/firebase'
+import { useState } from 'react'
+import { db, storage } from '@/lib/firebase'
+import { useAuth } from '@/contexts/AuthContext'
 import {
   savePlannerToFirebase,
   loadAllPlannersFromFirebase,
@@ -14,25 +14,8 @@ import {
 import type { PlannerInput, SavedPlanner, PlannerMetadata } from '@/types/planner'
 
 export function useFirebase() {
-  const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(false) // Mudado para false por padrão
+  const { user, loading, error: authError } = useAuth()
   const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    // Verificar se o Firebase está disponível
-    if (auth) {
-      const unsubscribe = onAuthStateChanged(auth, (user) => {
-        setUser(user)
-        setLoading(false)
-      })
-
-      return () => unsubscribe()
-    } else {
-      // Firebase não disponível - modo desenvolvimento
-      setLoading(false)
-      setError('Firebase não configurado. Configure as credenciais para usar funcionalidades completas.')
-    }
-  }, [])
 
   const savePlanner = async (planner: PlannerInput, title: string): Promise<string> => {
     try {
@@ -40,7 +23,10 @@ export function useFirebase() {
       if (!db) {
         throw new Error('Firebase não configurado. Configure as credenciais para salvar planejamentos.')
       }
-      return await savePlannerToFirebase(planner, title, user?.uid)
+      if (!user) {
+        throw new Error('Usuário não autenticado. Faça login para salvar planejamentos.')
+      }
+      return await savePlannerToFirebase(planner, title, user.uid)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido'
       setError(errorMessage)
@@ -141,7 +127,7 @@ export function useFirebase() {
   return {
     user,
     loading,
-    error,
+    error: error || authError,
     savePlanner,
     loadAllPlanners,
     loadPlannerById,
