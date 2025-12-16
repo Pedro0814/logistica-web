@@ -13,8 +13,7 @@ import {
   type DocumentData,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore'
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
-import { db, storage } from '@/lib/firebase'
+import { db } from '@/lib/firebase'
 import type { PlannerInput, SavedPlanner, PlannerMetadata } from '@/types/planner'
 
 const PLANNERS_COLLECTION = 'planners'
@@ -148,82 +147,6 @@ export async function deletePlannerFromFirebase(id: string): Promise<boolean> {
   } catch (error) {
     console.error('Erro ao excluir planejamento do Firebase:', error)
     throw new Error('Falha ao excluir planejamento do Firebase')
-  }
-}
-
-// Funções para gerenciar anexos no Firebase Storage
-export async function uploadAttachment(
-  file: File,
-  plannerId: string,
-  userId?: string
-): Promise<string> {
-  try {
-    const fileName = `${Date.now()}_${file.name}`
-    const filePath = `attachments/${userId || 'anonymous'}/${plannerId}/${fileName}`
-    const storageRef = ref(storage, filePath)
-    
-    const snapshot = await uploadBytes(storageRef, file)
-    const downloadURL = await getDownloadURL(snapshot.ref)
-    
-    // Salvar metadados do anexo no Firestore
-    await addDoc(collection(db, ATTACHMENTS_COLLECTION), {
-      plannerId,
-      userId: userId || 'anonymous',
-      fileName: file.name,
-      filePath,
-      downloadURL,
-      fileSize: file.size,
-      mimeType: file.type,
-      createdAt: serverTimestamp(),
-    })
-    
-    return downloadURL
-  } catch (error) {
-    console.error('Erro ao fazer upload do anexo:', error)
-    throw new Error('Falha ao fazer upload do anexo')
-  }
-}
-
-export async function getAttachmentsForPlanner(plannerId: string): Promise<any[]> {
-  try {
-    const q = query(
-      collection(db, ATTACHMENTS_COLLECTION),
-      where('plannerId', '==', plannerId)
-    )
-    
-    const querySnapshot = await getDocs(q)
-    const attachments: any[] = []
-    
-    querySnapshot.forEach((doc) => {
-      const data = doc.data()
-      attachments.push({
-        id: doc.id,
-        ...data,
-        createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
-      })
-    })
-    
-    return attachments
-  } catch (error) {
-    console.error('Erro ao carregar anexos:', error)
-    throw new Error('Falha ao carregar anexos')
-  }
-}
-
-export async function deleteAttachment(attachmentId: string, filePath: string): Promise<boolean> {
-  try {
-    // Deletar do Storage
-    const storageRef = ref(storage, filePath)
-    await deleteObject(storageRef)
-    
-    // Deletar do Firestore
-    const docRef = doc(db, ATTACHMENTS_COLLECTION, attachmentId)
-    await deleteDoc(docRef)
-    
-    return true
-  } catch (error) {
-    console.error('Erro ao excluir anexo:', error)
-    throw new Error('Falha ao excluir anexo')
   }
 }
 

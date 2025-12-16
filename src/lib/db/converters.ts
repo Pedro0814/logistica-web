@@ -10,16 +10,7 @@ import type {
 import { Timestamp, collection, doc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { withTimestampsForWrite } from './timestamps'
-import type {
-  Operation,
-  Technician,
-  UnitDoc,
-  Assignment,
-  PlanningDay,
-  ActualDay,
-  OperationAttachment,
-  WeekendPolicy,
-} from './types'
+import type { Operation, Technician, UnitDoc, Assignment, PlanningDay, ActualDay, WeekendPolicy } from './types'
 
 /**
  * Nota: o SDK pode invocar toFirestore com FieldValue em qualquer campo (WithFieldValue).
@@ -145,15 +136,6 @@ export const actualDayConverter: FirestoreDataConverter<ActualDay> = {
   },
   fromFirestore(snapshot) {
     return snapshot.data() as ActualDay
-  },
-}
-
-export const attachmentConverter: FirestoreDataConverter<OperationAttachment> = {
-  toFirestore(model) {
-    return withTimestamps<any>(model as any)
-  },
-  fromFirestore(snapshot) {
-    return snapshot.data() as OperationAttachment
   },
 }
 

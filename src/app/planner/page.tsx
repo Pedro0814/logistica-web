@@ -7,7 +7,6 @@ import PlannerManager from '@/components/PlannerManager'
 // Removed demo integrations; components are now rendered inside PlannerForm steps
 import FirebaseWarning from '@/components/FirebaseWarning'
 import { samplePlanner } from '@/utils/sample'
-import { useFirebase } from '@/hooks/useFirebase'
 import { useUnits } from '@/lib/hooks/units'
 import { useTechnicians } from '@/lib/hooks/technicians'
 import { useWeekendPolicy } from '@/lib/hooks/weekendPolicy'
@@ -18,13 +17,16 @@ import EmptyState from '@/components/EmptyState'
 import { Button } from '@/components/ui/Button'
 import { getCurrentUserRole, canEditPlanning } from '@/lib/auth/roles'
 import ProtectedRoute from '@/components/auth/ProtectedRoute'
+import { savePlanner as savePlannerService } from '@/services/plannerService'
+import { useAuth } from '@/contexts/AuthContext'
 
 function PlannerPageContent() {
-  const { savePlanner, error: firebaseError } = useFirebase()
+  const { user } = useAuth()
   const [currentPlanner, setCurrentPlanner] = useState<PlannerInput | null>(null)
   const [currentPlannerId, setCurrentPlannerId] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [showManager, setShowManager] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   // Hooks reais (ou stubs seguros)
   const { planners } = usePlanners()
@@ -58,13 +60,18 @@ function PlannerPageContent() {
 
   const handleSubmit = async (values: PlannerInput, title: string) => {
     try {
-      const plannerId = await savePlanner(values, title)
+      setSaveError(null)
+      const plannerId = await savePlannerService(values, {
+        title,
+        userId: user?.uid || null,
+      })
       setCurrentPlannerId(plannerId) // Armazenar o ID para anexos
       alert(`Planejamento "${title}" salvo com sucesso! ID: ${plannerId}`)
       setShowForm(false)
       setShowManager(true)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao salvar:', error)
+      setSaveError(error?.message || 'Erro ao salvar o planejamento. Tente novamente.')
       alert('Erro ao salvar o planejamento. Tente novamente.')
     }
   }
@@ -125,7 +132,7 @@ function PlannerPageContent() {
         <main className="mx-auto max-w-6xl px-4 md:px-6">
           <div className="w-full space-y-6 pb-28">
           {/* Firebase Warning */}
-          {firebaseError && <FirebaseWarning />}
+          {saveError && <FirebaseWarning />}
           
           {/* Action Empty State */}
           {!showForm && !showManager && (

@@ -2,7 +2,8 @@
 
 import { useState, useRef } from 'react'
 import { Button } from '@/components/ui/Button'
-import { useFirebase } from '@/hooks/useFirebase'
+import { useAuth } from '@/contexts/AuthContext'
+import { uploadAttachment, getAttachmentMode } from '@/services/attachmentService'
 
 interface AttachmentButtonProps {
   onFileSelect?: (file: File) => void
@@ -25,10 +26,10 @@ export default function AttachmentButton({
 }: AttachmentButtonProps) {
   const [isUploading, setIsUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const { uploadFile, error: firebaseError } = useFirebase()
+  const { user } = useAuth()
   
-  // Desabilitar se não há Firebase configurado
-  const isFirebaseAvailable = !firebaseError && plannerId
+  // Disponível se temos plannerId; attachmentService gerencia modo mock/firestore
+  const isAvailable = !!plannerId
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -40,9 +41,16 @@ export default function AttachmentButton({
         // Modo personalizado - chama callback
         await onFileSelect(file)
       } else if (plannerId) {
-        // Modo Firebase - upload direto
-        const attachmentId = await uploadFile(file, plannerId)
-        console.log('Arquivo enviado com sucesso:', attachmentId)
+        // Modo attachmentService - upload direto via Cloudinary + Firestore/metadados
+        const rec = await uploadAttachment({
+          operationId: plannerId,
+          file,
+          meta: {
+            category: 'outros',
+            uploadedBy: user?.uid || null,
+          },
+        })
+        console.log('Arquivo enviado com sucesso:', rec.id)
         alert('Arquivo enviado com sucesso!')
       } else {
         console.warn('Nenhum callback ou plannerId fornecido')
@@ -60,8 +68,8 @@ export default function AttachmentButton({
   }
 
   const handleClick = () => {
-    if (!isFirebaseAvailable) {
-      alert('Funcionalidade de anexos não disponível. Configure o Firebase para usar esta funcionalidade.')
+    if (!isAvailable) {
+      alert('Funcionalidade de anexos não disponível.')
       return
     }
     fileInputRef.current?.click()
@@ -80,13 +88,13 @@ export default function AttachmentButton({
         <button
           type="button"
           onClick={handleClick}
-          disabled={isUploading || !isFirebaseAvailable}
+          disabled={isUploading || !isAvailable}
           className={`p-1.5 transition-colors duration-200 ${
-            isFirebaseAvailable 
+            isAvailable 
               ? 'text-gray-400 hover:text-gray-600 hover:bg-gray-100' 
               : 'text-gray-300 cursor-not-allowed'
           }`}
-          title={isFirebaseAvailable ? (tooltip || "Anexar arquivo") : "Firebase não configurado"}
+          title={isAvailable ? (tooltip || "Anexar arquivo") : "Anexos não disponíveis"}
         >
           {isUploading ? (
             <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -115,8 +123,8 @@ export default function AttachmentButton({
           type="button"
           variant="outline"
           onClick={handleClick}
-          disabled={isUploading || !isFirebaseAvailable}
-          className={`w-full ${!isFirebaseAvailable ? 'opacity-50 cursor-not-allowed' : ''}`}
+          disabled={isUploading || !isAvailable}
+          className={`w-full ${!isAvailable ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
         {isUploading ? (
           <>

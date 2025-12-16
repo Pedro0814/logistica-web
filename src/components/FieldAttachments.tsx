@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from 'react'
-import { useFirebase } from '@/hooks/useFirebase'
+import { listAttachments as listAttachmentsService } from '@/services/attachmentService'
 
 interface FieldAttachmentsProps {
   plannerId: string
@@ -20,19 +20,19 @@ interface Attachment {
 }
 
 export default function FieldAttachments({ plannerId, fieldType, className = "" }: FieldAttachmentsProps) {
-  const { getAttachments } = useFirebase()
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [loading, setLoading] = useState(false)
 
   const loadFieldAttachments = useCallback(async () => {
     try {
       setLoading(true)
-      const allAttachments = await getAttachments(plannerId)
-      // Filtrar anexos por fieldType (assumindo que o fileName contém o fieldType)
-      const fieldAttachments = allAttachments.filter((att: any) => 
-        att.fileName.includes(fieldType) || att.fileName.includes(fieldType.replace('_', '-'))
+      const all = await listAttachmentsService(plannerId)
+      // Filtrar anexos por fieldType baseado no nome do arquivo (mantém comportamento existente)
+      const fieldAttachments = all.filter((att: any) =>
+        att.originalFilename?.includes(fieldType) ||
+        att.originalFilename?.includes(fieldType.replace('_', '-'))
       )
-      setAttachments(fieldAttachments)
+      setAttachments(fieldAttachments as any)
     } catch (error) {
       console.error('Erro ao carregar anexos do campo:', error)
     } finally {

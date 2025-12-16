@@ -1,23 +1,11 @@
 "use client"
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import Image from 'next/image';
-import { useFirebase } from '@/hooks/useFirebase';
-import { 
-  buildUploadUrl, 
-  buildThumbUrl, 
-  isSignedUploadEnabled, 
-  validateFile, 
-  formatFileSize,
-  ALLOWED_FILE_TYPES,
-  MAX_FILE_SIZE 
-} from '@/utils/cloudinary';
-import { 
-  listAttachments, 
-  addAttachment, 
-  removeAttachment 
-} from '@/utils/firestore-attachments';
-import type { Attachment, CloudinaryUploadResult, CloudinarySignResponse } from '@/types/attachments';
+import { useAuth } from '@/contexts/AuthContext';
+import { uploadAttachment, listAttachments as listAttachmentsService, removeAttachment as removeAttachmentService } from '@/services/attachmentService';
+import type { AttachmentRecord } from '@/services/attachmentService';
+import { validateFile, formatFileSize, ALLOWED_FILE_TYPES, MAX_FILE_SIZE } from '@/utils/cloudinary';
 // Simple notifier fallback
 const notify = {
   success: (msg: string) => (typeof window !== 'undefined' ? window.alert(msg) : console.log(msg)),
@@ -37,8 +25,8 @@ interface UploadProgress {
 }
 
 export default function AttachmentManager({ planId, readOnly = false }: AttachmentManagerProps) {
-  const { user } = useFirebase();
-  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const { user } = useAuth();
+  const [attachments, setAttachments] = useState<AttachmentRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<UploadProgress[]>([]);
@@ -47,10 +35,11 @@ export default function AttachmentManager({ planId, readOnly = false }: Attachme
   // Carregar anexos
   const loadAttachments = useCallback(async () => {
     if (!planId) return;
-    
+
     try {
       setLoading(true);
-      const data = await listAttachments(planId);
+      // Reutilizamos attachmentService, tratando planId como operationId
+      const data = await listAttachmentsService(planId);
       setAttachments(data);
     } catch (error) {
       console.error('Erro ao carregar anexos:', error);
@@ -60,67 +49,27 @@ export default function AttachmentManager({ planId, readOnly = false }: Attachme
     }
   }, [planId]);
 
-  // Upload de arquivo
-  const uploadFile = async (file: File): Promise<CloudinaryUploadResult> => {
+  useEffect(() => {
+    void loadAttachments();
+  }, [loadAttachments]);
+
+  // Upload de arquivo (via attachmentService + Cloudinary)
+  const uploadFile = async (file: File) => {
     const validation = validateFile(file);
     if (!validation.valid) {
       throw new Error(validation.error);
     }
 
-    const isSigned = isSignedUploadEnabled();
-    
-    if (isSigned) {
-      // Upload assinado (produção)
-      const signResponse = await fetch('/api/cloudinary/sign', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${await user?.getIdToken?.()}`
-        },
-        body: JSON.stringify({ planId })
-      });
+    const rec = await uploadAttachment({
+      operationId: planId,
+      file,
+      meta: {
+        category: 'outros',
+        uploadedBy: user?.uid || null,
+      },
+    });
 
-      if (!signResponse.ok) {
-        throw new Error('Falha ao obter assinatura');
-      }
-
-      const signData: CloudinarySignResponse = await signResponse.json();
-      
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('api_key', signData.apiKey);
-      formData.append('timestamp', signData.timestamp.toString());
-      formData.append('signature', signData.signature);
-      formData.append('folder', signData.folder);
-
-      const uploadResponse = await fetch(buildUploadUrl(), {
-        method: 'POST',
-        body: formData
-      });
-
-      if (!uploadResponse.ok) {
-        throw new Error('Falha no upload');
-      }
-
-      return await uploadResponse.json();
-    } else {
-      // Upload não assinado (beta)
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('upload_preset', process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || '');
-      formData.append('folder', `planner_uploads/${planId}`);
-
-      const uploadResponse = await fetch(buildUploadUrl(), {
-        method: 'POST',
-        body: formData
-      });
-
-      if (!uploadResponse.ok) {
-        throw new Error('Falha no upload');
-      }
-
-      return await uploadResponse.json();
-    }
+    return rec;
   };
 
   // Processar upload com progresso
@@ -156,24 +105,6 @@ export default function AttachmentManager({ planId, readOnly = false }: Attachme
 
           const result = await uploadFile(file);
           
-          // Criar attachment
-          const attachmentData: Omit<Attachment, 'id'> = {
-            planId,
-            publicId: result.public_id,
-            secureUrl: result.secure_url,
-            thumbUrl: buildThumbUrl(result.public_id, result.format),
-            format: result.format,
-            bytes: result.bytes,
-            width: result.width,
-            height: result.height,
-            originalFilename: result.original_filename || file.name,
-            createdAt: Date.now(),
-            ownerUid: user.uid
-          };
-
-          // Salvar no Firestore
-          await addAttachment(planId, attachmentData);
-          
           // Atualizar progresso
           setUploadProgress(prev => prev.map((item, idx) => 
             idx === i ? { ...item, status: 'success', progress: 100 } : item
@@ -204,38 +135,14 @@ export default function AttachmentManager({ planId, readOnly = false }: Attachme
   };
 
   // Remover anexo
-  const handleRemoveAttachment = async (attachment: Attachment) => {
+  const handleRemoveAttachment = async (attachment: AttachmentRecord) => {
     if (!user) {
       notify.error('Usuário não autenticado');
       return;
     }
 
     try {
-      const isSigned = isSignedUploadEnabled();
-      
-      if (isSigned) {
-        // Deletar via API (produção)
-        const response = await fetch('/api/cloudinary/delete', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${await user.getIdToken?.()}`
-          },
-          body: JSON.stringify({
-            planId: attachment.planId,
-            publicId: attachment.publicId,
-            attachmentId: attachment.id
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error('Falha ao deletar arquivo');
-        }
-      } else {
-        // Apenas remover do Firestore (beta)
-        await removeAttachment(attachment.planId, attachment.id);
-      }
-
+      await removeAttachmentService(planId, attachment.id);
       setAttachments(prev => prev.filter(a => a.id !== attachment.id));
       notify.success('Anexo removido com sucesso');
       

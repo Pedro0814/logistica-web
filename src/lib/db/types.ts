@@ -95,22 +95,6 @@ export interface ActualDay {
   updatedAt: Timestamp
 }
 
-export type AttachmentCategory = 'hotel' | 'alimentacao' | 'transporte' | 'passagens' | 'outros'
-
-export interface OperationAttachment {
-  dayId: string
-  unitId: string
-  techId?: string
-  category: AttachmentCategory
-  url: string
-  publicId: string
-  bytes: number
-  mime: string
-  uploadedAt: Timestamp
-  notes?: string
-  createdAt: Timestamp
-}
-
 export interface WeekendPolicyWeek {
   weekIndex: number
   saturday: 'work' | 'off'

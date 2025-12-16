@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { db, storage } from '@/lib/firebase'
+import { db } from '@/lib/firebase'
 import { useAuth } from '@/contexts/AuthContext'
 import {
   savePlannerToFirebase,
@@ -7,9 +7,6 @@ import {
   loadPlannerByIdFromFirebase,
   updatePlannerTitleInFirebase,
   deletePlannerFromFirebase,
-  uploadAttachment,
-  getAttachmentsForPlanner,
-  deleteAttachment,
 } from '@/services/firebase'
 import type { PlannerInput, SavedPlanner, PlannerMetadata } from '@/types/planner'
 
@@ -81,49 +78,6 @@ export function useFirebase() {
     }
   }
 
-  const uploadFile = async (file: File, plannerId: string): Promise<string> => {
-    try {
-      setError(null)
-      if (!storage) {
-        throw new Error('Firebase Storage não está disponível. Configure as credenciais para usar anexos.')
-      }
-      return await uploadAttachment(file, plannerId, user?.uid)
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido'
-      setError(errorMessage)
-      throw err
-    }
-  }
-
-  const getAttachments = async (plannerId: string): Promise<any[]> => {
-    try {
-      setError(null)
-      if (!storage) {
-        console.warn('Firebase Storage não disponível - retornando array vazio')
-        return []
-      }
-      return await getAttachmentsForPlanner(plannerId)
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido'
-      setError(errorMessage)
-      throw err
-    }
-  }
-
-  const deleteFile = async (attachmentId: string, filePath: string): Promise<boolean> => {
-    try {
-      setError(null)
-      if (!storage) {
-        throw new Error('Firebase Storage não está disponível. Configure as credenciais para usar anexos.')
-      }
-      return await deleteAttachment(attachmentId, filePath)
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido'
-      setError(errorMessage)
-      throw err
-    }
-  }
-
   return {
     user,
     loading,
@@ -133,8 +87,5 @@ export function useFirebase() {
     loadPlannerById,
     updatePlannerTitle,
     deletePlanner,
-    uploadFile,
-    getAttachments,
-    deleteFile,
   }
 }

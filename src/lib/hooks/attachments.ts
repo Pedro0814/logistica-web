@@ -1,9 +1,11 @@
 import { useMemo } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { listCollection, setDocData, updateDocData } from '@/lib/firebase/db'
-import { serverTimestamp, doc, deleteDoc } from 'firebase/firestore'
-import { uploadUnsigned } from '@/lib/cloudinary/upload'
 import { useAuth } from '@/contexts/AuthContext'
+import {
+  uploadAttachment,
+  listAttachments as listAttachmentsService,
+  removeAttachment as removeAttachmentService,
+} from '@/services/attachmentService'
 
 export type Attachment = {
   id: string
@@ -30,32 +32,22 @@ export function useAttachments(operationId: string, dayId?: string) {
     queryKey: key,
     enabled: Boolean(operationId),
     queryFn: async () => {
-      const filters: any = { order: [['uploadedAt', 'desc']] }
-      if (dayId) filters.where = [['dayId', '==', dayId]]
-      const rows = await listCollection(`operations/${operationId}/attachments`, filters)
+      const rows = await listAttachmentsService(operationId, { dayId })
       return (rows as any[]).filter((r) => !r.deletedAt) as unknown as Attachment[]
     },
   })
 
   const upload = useMutation({
     mutationFn: async ({ file, meta }: { file: File; meta: { dayId?: string; unitId?: string; techId?: string; category: Attachment['category']; amountCents?: number } }) => {
-      const up = await uploadUnsigned(file, { category: meta.category, amountCents: meta.amountCents })
-      const id = crypto.randomUUID()
-      await setDocData(`operations/${operationId}/attachments/${id}`, {
-        id,
-        dayId: meta.dayId || null,
-        unitId: meta.unitId || null,
-        techId: meta.techId || null,
-        category: meta.category,
-        amountCents: meta.amountCents ?? null,
-        url: up.url,
-        publicId: up.publicId,
-        bytes: up.bytes,
-        mime: up.mime,
-        uploadedAt: serverTimestamp(),
-        uploadedBy: user?.uid || null,
-      }, true)
-      return { id, ...up, ...meta } as any
+      const rec = await uploadAttachment({
+        operationId,
+        file,
+        meta: {
+          ...meta,
+          uploadedBy: user?.uid || null,
+        },
+      })
+      return rec as any
     },
     onMutate: async ({ file, meta }) => {
       await qc.cancelQueries({ queryKey: key })
@@ -83,8 +75,7 @@ export function useAttachments(operationId: string, dayId?: string) {
 
   const remove = useMutation({
     mutationFn: async ({ id }: { id: string }) => {
-      // Here we assume a server route handles Cloudinary deletion. For now only remove Firestore doc.
-      await updateDocData(`operations/${operationId}/attachments/${id}`, { deletedAt: serverTimestamp() })
+      await removeAttachmentService(operationId, id)
     },
     onMutate: async ({ id }) => {
       await qc.cancelQueries({ queryKey: key })

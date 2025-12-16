@@ -1,7 +1,9 @@
 "use client"
 
-import { useState, useEffect, useCallback } from 'react'
-import { useFirebase } from '@/hooks/useFirebase'
+import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { usePlanners } from '@/lib/hooks/planners'
+import { getPlanner, updatePlanner, deletePlanner as deletePlannerService } from '@/services/plannerService'
 import { exportPlanner } from '@/utils/excel'
 import type { PlannerMetadata, SavedPlanner } from '@/types/planner'
 import type { ComputedPlan } from '@/types/schedule'
@@ -13,27 +15,11 @@ interface PlannerManagerProps {
 }
 
 export default function PlannerManager({ onSelectPlanner, onExportPlanner }: PlannerManagerProps) {
-  const { loadAllPlanners, loadPlannerById, updatePlannerTitle, deletePlanner, loading, error } = useFirebase()
-  const [planners, setPlanners] = useState<PlannerMetadata[]>([])
+  const qc = useQueryClient()
+  const { planners, isLoading } = usePlanners()
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingTitle, setEditingTitle] = useState('')
   const [selectedPlannerId, setSelectedPlannerId] = useState<string | null>(null)
-
-  const loadPlanners = useCallback(async () => {
-    try {
-      const plannersList = await loadAllPlanners()
-      setPlanners(plannersList.sort((a, b) => 
-        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-      ))
-    } catch (error) {
-      console.error('Erro ao carregar planejamentos:', error)
-    }
-  }, [loadAllPlanners])
-
-  useEffect(() => {
-    loadPlanners()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   const handleEditTitle = (planner: PlannerMetadata) => {
     setEditingId(planner.id)
@@ -43,8 +29,8 @@ export default function PlannerManager({ onSelectPlanner, onExportPlanner }: Pla
   const handleSaveTitle = async (id: string) => {
     if (editingTitle.trim()) {
       try {
-        await updatePlannerTitle(id, editingTitle.trim())
-        await loadPlanners()
+        await updatePlanner(id, { title: editingTitle.trim() })
+        qc.invalidateQueries({ queryKey: ['planners'] })
       } catch (error) {
         console.error('Erro ao atualizar título:', error)
         alert('Erro ao atualizar título. Tente novamente.')
@@ -62,8 +48,8 @@ export default function PlannerManager({ onSelectPlanner, onExportPlanner }: Pla
   const handleDeletePlanner = async (id: string) => {
     if (confirm('Tem certeza que deseja excluir este planejamento? Esta ação não pode ser desfeita.')) {
       try {
-        await deletePlanner(id)
-        await loadPlanners()
+        await deletePlannerService(id)
+        qc.invalidateQueries({ queryKey: ['planners'] })
         if (selectedPlannerId === id) {
           setSelectedPlannerId(null)
         }
@@ -76,8 +62,30 @@ export default function PlannerManager({ onSelectPlanner, onExportPlanner }: Pla
 
   const handleSelectPlanner = async (id: string) => {
     try {
-      const planner = await loadPlannerById(id)
-      if (planner) {
+      const raw = await getPlanner(id)
+      if (raw && (raw as any).data) {
+        const data: any = (raw as any).data
+        const metadata: PlannerMetadata = {
+          id: raw.id,
+          title: (raw as any).title || 'Planejamento',
+          createdAt: (raw as any).createdAt || '',
+          updatedAt: (raw as any).updatedAt || '',
+          technicianName: data.global?.technicianName || '',
+          originCity: data.global?.originCity || '',
+          totalCities: Array.isArray(data.itinerary) ? data.itinerary.length : 0,
+          totalStores: Array.isArray(data.itinerary)
+            ? data.itinerary.reduce(
+                (sum: number, city: any) =>
+                  sum + (Array.isArray(city.stores) ? city.stores.length : 0),
+                0
+              )
+            : 0,
+          estimatedDays: 0,
+        }
+        const planner: SavedPlanner = {
+          metadata,
+          data,
+        }
         setSelectedPlannerId(id)
         onSelectPlanner(planner)
       }
@@ -89,10 +97,32 @@ export default function PlannerManager({ onSelectPlanner, onExportPlanner }: Pla
 
   const handleExportPlanner = async (id: string) => {
     try {
-      const planner = await loadPlannerById(id)
-      if (planner) {
+      const raw = await getPlanner(id)
+      if (raw && (raw as any).data) {
+        const data: any = (raw as any).data
+        const metadata: PlannerMetadata = {
+          id: raw.id,
+          title: (raw as any).title || 'Planejamento',
+          createdAt: (raw as any).createdAt || '',
+          updatedAt: (raw as any).updatedAt || '',
+          technicianName: data.global?.technicianName || '',
+          originCity: data.global?.originCity || '',
+          totalCities: Array.isArray(data.itinerary) ? data.itinerary.length : 0,
+          totalStores: Array.isArray(data.itinerary)
+            ? data.itinerary.reduce(
+                (sum: number, city: any) =>
+                  sum + (Array.isArray(city.stores) ? city.stores.length : 0),
+                0
+              )
+            : 0,
+          estimatedDays: 0,
+        }
+        const planner: SavedPlanner = {
+          metadata,
+          data,
+        }
         // Calcular cronograma para exportação
-        const schedule = computeSchedule(planner.data, {
+        const schedule = computeSchedule(planner.data as any, {
           dailyWorkingHours: 8,
           travelHoursPerLeg: 2
         })
@@ -194,7 +224,17 @@ export default function PlannerManager({ onSelectPlanner, onExportPlanner }: Pla
                         {planner.title}
                       </h3>
                       <button
-                        onClick={() => handleEditTitle(planner)}
+                        onClick={() => handleEditTitle({
+                          id: planner.id,
+                          title: planner.title ?? '',
+                          estimatedDays: planner.estimatedDays,
+                          createdAt: planner.createdAt,
+                          updatedAt: planner.updatedAt,
+                          technicianName: '',
+                          originCity: '',
+                          totalCities: 0,
+                          totalStores: 0
+                        })}
                         className="text-gray-400 hover:text-gray-600 transition-colors duration-200"
                         title="Editar título"
                       >

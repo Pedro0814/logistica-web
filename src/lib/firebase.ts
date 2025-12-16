@@ -1,7 +1,6 @@
 import { initializeApp } from 'firebase/app'
 import { getFirestore } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth'
-import { getStorage } from 'firebase/storage'
 
 // Configuração padrão para desenvolvimento (sem credenciais)
 const firebaseConfig = {
@@ -14,36 +13,30 @@ const firebaseConfig = {
 }
 
 // Verificar se temos credenciais válidas
-const hasValidCredentials = process.env.NEXT_PUBLIC_FIREBASE_API_KEY && 
-                           process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
+const hasValidCredentials = process.env.NEXT_PUBLIC_FIREBASE_API_KEY &&
+                            process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
 
 let app: any = null
 let db: any = null
 let auth: any = null
-let storage: any = null
 
 if (hasValidCredentials) {
   try {
     // Initialize Firebase
     app = initializeApp(firebaseConfig)
-    
-    // Initialize Firebase services
+
+    // Initialize Firebase services (sem Storage)
     db = getFirestore(app)
     auth = getAuth(app)
-    storage = getStorage(app)
   } catch (error) {
     console.warn('Firebase initialization failed:', error)
-    // Em caso de erro, não inicializar serviços
     app = null
     db = null
     auth = null
-    storage = null
   }
 } else {
   console.warn('Firebase credentials not found. Using mock services for development.')
-  // Garantir que storage seja null quando não há credenciais
-  storage = null
 }
 
-export { db, auth, storage }
+export { db, auth }
 export default app

@@ -1,137 +1,18 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    function isSignedIn() { return request.auth != null; }
-    function isActiveUser() { return request.auth != null && exists(/databases/$(database)/documents/users/$(request.auth.uid)); }
-    function role() { return request.auth.token.role; } // 'admin' | 'coord' | 'tech'
-    function isAdmin() { return role() == 'admin'; }
-    function isCoord() { return role() == 'coord'; }
-    function isTech()  { return role() == 'tech'; }
-
-    function isISODate(s) { return s is string && s.size() == 10 && s.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$'); }
-    function isNonNegInt(n) { return n is int && n >= 0; }
-    function validMoney(obj) {
-      return obj is map && isNonNegInt(obj.ticketsCents) && isNonNegInt(obj.transportLocalCents) && isNonNegInt(obj.hotelCents)
-             && isNonNegInt(obj.foodCents) && isNonNegInt(obj.hydrationCents) && isNonNegInt(obj.allowanceExtraCents);
-    }
-    function arrayOfStrings(a) { return a is list && a.size() >= 1 && a.size() <= 20; }
-    function isAssignedTech(opId) { return isSignedIn() && exists(/databases/$(database)/documents/operations/$(opId)/assignments/$(request.auth.uid)); }
-
-    match /operations/{operationId} {
-      // Leitura: permite autenticado
-      // Se tem role: valida por role/assignment (produção)
-      // Se não tem role: permite qualquer autenticado (dev/local)
-      allow read: if isActiveUser() && (
-        role() == null || 
-        isAdmin() || 
-        isCoord() || 
-        (isTech() && isAssignedTech(operationId))
-      );
-      // Escrita: admin/coord OU qualquer autenticado em dev
-      allow create, update, delete: if isActiveUser() && (
-        role() == null || 
-        isAdmin() || 
-        isCoord()
-      );
-
-      match /planning/{dayId} {
-        allow read: if isActiveUser() && (role() == null || isAdmin() || isCoord() || (isTech() && isAssignedTech(operationId)));
-        allow create, update, delete: if isActiveUser() && (role() == null || isAdmin() || isCoord());
-        allow create, update: if request.resource.data.date is string && isISODate(request.resource.data.date)
-                              && arrayOfStrings(request.resource.data.techIds)
-                              && request.resource.data.plannedAssets is int && request.resource.data.plannedAssets >= 0
-                              && validMoney(request.resource.data.plannedCosts);
-      }
-
-      match /actuals/{dayId} {
-        allow read: if isActiveUser() && (role() == null || isAdmin() || isCoord() || (isTech() && isAssignedTech(operationId)));
-        allow create, update: if isActiveUser() && (role() == null || isAdmin() || isCoord() || (isTech() && isAssignedTech(operationId)))
-                              && request.resource.data.date is string && isISODate(request.resource.data.date)
-                              && arrayOfStrings(request.resource.data.techIds)
-                              && request.resource.data.actualAssets is int && request.resource.data.actualAssets >= 0
-                              && validMoney(request.resource.data.actualCosts)
-                              && request.resource.data.meta is map
-                              && request.resource.data.meta.filledBy == request.auth.uid;
-        allow delete: if isActiveUser() && (role() == null || isAdmin() || isCoord());
-      }
-
-      match /attachments/{attachmentId} {
-        // Leitura: permite se autenticado
-        // Se tem role no token: valida por role/assignment (produção)
-        // Se não tem role: permite qualquer autenticado (dev/local)
-        allow read: if isActiveUser() && (
-          role() == null || 
-          isAdmin() || 
-          isCoord() || 
-          (isTech() && isAssignedTech(operationId))
-        );
-        
-        // Criação: permite autenticado E valida dados obrigatórios
-        allow create: if isActiveUser() && (
-          role() == null || 
-          isAdmin() || 
-          isCoord() || 
-          (isTech() && isAssignedTech(operationId))
-        )
-                      && request.resource.data.url is string && request.resource.data.url.size() > 10
-                      && request.resource.data.publicId is string && request.resource.data.publicId.size() > 3
-                      && request.resource.data.uploadedAt != null;
-        
-        // Update/Delete: permite autor OU admin/coord (ou qualquer autenticado em dev)
-        allow update, delete: if isActiveUser() && (
-          // Sem role (dev): permite qualquer autenticado
-          role() == null ||
-          // Com role: admin/coord sempre, ou tech se for o autor
-          isAdmin() || 
-          isCoord() || 
-          (isTech() && isAssignedTech(operationId) && (
-            resource.data.uploadedBy == request.auth.uid ||
-            (resource.data.meta != null && resource.data.meta.filledBy == request.auth.uid)
-          ))
-        );
-      }
-
-      match /assignments/{assignmentId} {
-        allow read: if isActiveUser() && (role() == null || isAdmin() || isCoord() || (isTech() && isAssignedTech(operationId)));
-        allow create, update, delete: if isActiveUser() && (role() == null || isAdmin() || isCoord());
-      }
-
-      match /comments/{commentId} {
-        allow read: if isActiveUser() && (role() == null || isAdmin() || isCoord() || (isTech() && isAssignedTech(operationId)));
-        allow create: if isActiveUser() && (role() == null || isAdmin() || isCoord() || (isTech() && isAssignedTech(operationId)));
-        allow update, delete: if isActiveUser() && (role() == null || isAdmin() || isCoord() || (isTech() && isAssignedTech(operationId) && resource.data.author == request.auth.uid));
-      }
+    function isSignedIn() {
+      return request.auth != null;
     }
 
-    match /technicians/{techId} {
-      allow read: if isActiveUser() && (role() == null || isAdmin() || isCoord());
-      allow create, update, delete: if isActiveUser() && (role() == null || isAdmin());
-    }
-
-    match /units/{unitId} {
-      allow read: if isActiveUser();
-      allow create, update, delete: if isActiveUser() && (role() == null || isAdmin() || isCoord());
-    }
-
-    match /weekendPolicies/{policyId} {
-      allow read: if isActiveUser();
-      allow create, update: if isActiveUser() && (role() == null || isAdmin() || isCoord())
-                            && request.resource.data.name is string
-                            && request.resource.data.weeks is list;
-      allow delete: if isActiveUser() && (role() == null || isAdmin());
-    }
-
-    // Legacy/plans area used by Planner page
+    // Planejamentos (plannerService)
     match /plans/{planId} {
-      allow read: if isActiveUser();
-      allow create: if isActiveUser();
-      allow update, delete: if isActiveUser() && resource.data.ownerUid == request.auth.uid;
-      match /attachments/{attachmentId} {
-        allow read: if isActiveUser();
-        allow create: if isActiveUser() && request.resource.data.ownerUid == request.auth.uid;
-        allow delete, update: if isActiveUser() && resource.data.ownerUid == request.auth.uid;
-      }
+      allow read, write: if isSignedIn();
+    }
+
+    // Metadados de anexos por operação (attachmentService)
+    match /operations/{operationId}/attachments/{attachmentId} {
+      allow read, write: if isSignedIn();
     }
   }
 }
-
