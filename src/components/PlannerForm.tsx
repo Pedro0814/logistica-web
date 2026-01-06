@@ -56,6 +56,7 @@ export default function PlannerForm({ initial, plannerId, onSubmit }: PlannerFor
   const [plannerTitle, setPlannerTitle] = useState(initial ? 'Planejamento Existente' : '')
   const [showTitleInput, setShowTitleInput] = useState(!initial)
   const [currentStep, setCurrentStep] = useState(0)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const form = useForm<PlannerInput>({
     resolver: zodResolver(PlannerInputSchema),
@@ -116,12 +117,22 @@ export default function PlannerForm({ initial, plannerId, onSubmit }: PlannerFor
     }
   }, [isRegional, originCityValue, appendCity, form, itineraryFields.length])
 
-  const handleSubmit = (values: PlannerInput) => {
+  const handleSubmit = async (values: PlannerInput) => {
     if (!plannerTitle.trim()) {
       setShowTitleInput(true)
+      alert('Por favor, preencha o título do planejamento antes de salvar.')
       return
     }
-    onSubmit(values, plannerTitle.trim())
+    try {
+      setIsSubmitting(true)
+      await onSubmit(values, plannerTitle.trim())
+    } catch (error) {
+      console.error('Erro ao salvar planejamento:', error)
+      // O erro já é tratado no componente pai, mas garantimos que não seja silenciado
+      throw error
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const addCity = () => {
@@ -160,11 +171,22 @@ export default function PlannerForm({ initial, plannerId, onSubmit }: PlannerFor
     form.setValue(`itinerary.${cityIndex}.stores`, newStores)
   }
 
-  const nextStep = () => {
+  const nextStep = async () => {
     if (currentStep < STEPS.length - 1) {
       setCurrentStep(currentStep + 1)
     } else {
-      form.handleSubmit(handleSubmit)()
+      // Último passo: validar e submeter
+      if (!plannerTitle.trim()) {
+        setShowTitleInput(true)
+        alert('Por favor, preencha o título do planejamento antes de gerar o cronograma.')
+        return
+      }
+      const isValid = await form.trigger()
+      if (isValid) {
+        await form.handleSubmit(handleSubmit)()
+      } else {
+        alert('Por favor, corrija os erros no formulário antes de continuar.')
+      }
     }
   }
 
@@ -848,8 +870,9 @@ export default function PlannerForm({ initial, plannerId, onSubmit }: PlannerFor
         onNext={nextStep}
         onPrevious={previousStep}
         onSaveDraft={handleSaveDraft}
-        canGoNext={canGoNext()}
-        canGoPrevious={canGoPrevious()}
+        canGoNext={canGoNext() && !isSubmitting}
+        canGoPrevious={canGoPrevious() && !isSubmitting}
+        isSubmitting={isSubmitting}
       />
     </div>
   )
