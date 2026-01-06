@@ -171,6 +171,105 @@ export default function PlannerForm({ initial, plannerId, onSubmit }: PlannerFor
     form.setValue(`itinerary.${cityIndex}.stores`, newStores)
   }
 
+  // Função para coletar e formatar erros de validação
+  const getValidationErrors = (): string[] => {
+    const errors: string[] = []
+    const formErrors = form.formState.errors
+    const values = form.getValues()
+
+    // Verificar título
+    if (!plannerTitle.trim()) {
+      errors.push('• Título do planejamento está vazio')
+    }
+
+    // Verificar campos globais diretamente dos valores
+    if (!values.global?.technicianName?.trim()) {
+      errors.push('• Nome do técnico é obrigatório')
+    }
+    if (!values.global?.originCity?.trim()) {
+      errors.push('• Cidade de origem é obrigatória')
+    }
+    if (!values.global?.startDateISO?.trim()) {
+      errors.push('• Data de início é obrigatória')
+    }
+    if (!values.global?.assetsPerDay || values.global.assetsPerDay <= 0) {
+      errors.push('• Bens por dia deve ser maior que zero')
+    }
+    if (values.global?.technicianDailyRate === undefined || values.global?.technicianDailyRate === null) {
+      errors.push('• Diária do técnico deve ser preenchida (pode ser R$ 0,00)')
+    }
+
+    // Verificar itinerário
+    const itinerary = values.itinerary || []
+    
+    if (itinerary.length === 0) {
+      errors.push('• Adicione pelo menos uma cidade ao itinerário')
+    } else {
+      itinerary.forEach((city: any, cityIndex: number) => {
+        if (!city.city?.trim()) {
+          errors.push(`• Cidade ${cityIndex + 1}: nome da cidade é obrigatório`)
+        }
+        
+        if (!city.stores || city.stores.length === 0) {
+          errors.push(`• Cidade "${city.city || cityIndex + 1}": adicione pelo menos uma loja/unidade`)
+        } else {
+          city.stores.forEach((store: any, storeIndex: number) => {
+            if (!store.name?.trim()) {
+              errors.push(`• Cidade "${city.city || cityIndex + 1}", Loja ${storeIndex + 1}: nome da loja é obrigatório`)
+            }
+            if (!store.addressLine?.trim()) {
+              errors.push(`• Cidade "${city.city || cityIndex + 1}", Loja "${store.name || storeIndex + 1}": endereço é obrigatório`)
+            }
+            if (store.approxAssets === undefined || store.approxAssets === null || store.approxAssets <= 0) {
+              errors.push(`• Cidade "${city.city || cityIndex + 1}", Loja "${store.name || storeIndex + 1}": quantidade de bens deve ser maior que zero`)
+            }
+          })
+        }
+      })
+    }
+
+    // Também verificar erros do formulário para campos que podem ter validações mais específicas
+    if (formErrors.global) {
+      Object.keys(formErrors.global).forEach((key) => {
+        const error = (formErrors.global as any)[key]
+        if (error && error.message && !errors.some(e => e.includes(key))) {
+          errors.push(`• ${error.message}`)
+        }
+      })
+    }
+
+    if (formErrors.itinerary) {
+      formErrors.itinerary.forEach((cityError: any, cityIndex: number) => {
+        if (cityError) {
+          Object.keys(cityError).forEach((key) => {
+            if (key === 'stores' && cityError.stores) {
+              cityError.stores.forEach((storeError: any, storeIndex: number) => {
+                if (storeError) {
+                  Object.keys(storeError).forEach((storeKey) => {
+                    const error = storeError[storeKey]
+                    if (error && error.message) {
+                      const city = values.itinerary?.[cityIndex]?.city || `Cidade ${cityIndex + 1}`
+                      const store = values.itinerary?.[cityIndex]?.stores?.[storeIndex]?.name || `Loja ${storeIndex + 1}`
+                      errors.push(`• ${city}, ${store}: ${error.message}`)
+                    }
+                  })
+                }
+              })
+            } else if (cityError[key] && cityError[key].message) {
+              const city = values.itinerary?.[cityIndex]?.city || `Cidade ${cityIndex + 1}`
+              if (!errors.some(e => e.includes(city) && e.includes(key))) {
+                errors.push(`• ${city}: ${cityError[key].message}`)
+              }
+            }
+          })
+        }
+      })
+    }
+
+    // Remover duplicatas
+    return Array.from(new Set(errors))
+  }
+
   const nextStep = async () => {
     if (currentStep < STEPS.length - 1) {
       setCurrentStep(currentStep + 1)
@@ -181,11 +280,55 @@ export default function PlannerForm({ initial, plannerId, onSubmit }: PlannerFor
         alert('Por favor, preencha o título do planejamento antes de gerar o cronograma.')
         return
       }
+      
+      // Sempre coletar erros (mesmo que trigger retorne válido, pode haver problemas de validação customizada)
+      const errors = getValidationErrors()
+      
+      // Também validar com o trigger do formulário
       const isValid = await form.trigger()
-      if (isValid) {
+      
+      // Se houver erros encontrados ou o formulário não estiver válido
+      if (errors.length > 0 || !isValid) {
+        // Se não encontrou erros específicos mas o formulário está inválido, tentar novamente
+        if (errors.length === 0 && !isValid) {
+          // Aguardar um pouco para os erros serem atualizados
+          await new Promise(resolve => setTimeout(resolve, 100))
+          const newErrors = getValidationErrors()
+          if (newErrors.length > 0) {
+            errors.push(...newErrors)
+          }
+        }
+        
+        // Se ainda não conseguiu coletar erros detalhados
+        if (errors.length === 0) {
+          errors.push('• Verifique se todos os campos obrigatórios estão preenchidos corretamente')
+          errors.push('• Título do planejamento')
+          errors.push('• Parâmetros globais (nome técnico, cidade origem, etc.)')
+          errors.push('• Itinerário com pelo menos uma cidade e loja')
+        }
+        
+        // Mostrar mensagem detalhada
+        const errorMessage = `Por favor, corrija os seguintes erros antes de continuar:\n\n${errors.join('\n')}`
+        alert(errorMessage)
+        
+        // Ir para o primeiro passo com erro
+        if (errors.some(e => e.includes('Título'))) {
+          setShowTitleInput(true)
+          setCurrentStep(0)
+        } else if (errors.some(e => e.includes('técnico') || e.includes('origem') || e.includes('Data') || e.includes('Bens') || e.includes('Diária'))) {
+          setCurrentStep(1) // Ir para Parâmetros Globais
+        } else if (errors.some(e => e.includes('Cidade') || e.includes('Loja') || e.includes('itinerário'))) {
+          setCurrentStep(2) // Ir para Itinerário
+        }
+        
+        return
+      }
+      
+      // Se tudo estiver válido, submeter
+      try {
         await form.handleSubmit(handleSubmit)()
-      } else {
-        alert('Por favor, corrija os erros no formulário antes de continuar.')
+      } catch (error) {
+        console.error('Erro ao submeter formulário:', error)
       }
     }
   }
