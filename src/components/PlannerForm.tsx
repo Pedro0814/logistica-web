@@ -182,19 +182,26 @@ export default function PlannerForm({ initial, plannerId, onSubmit }: PlannerFor
       errors.push('• Título do planejamento está vazio')
     }
 
-    // Verificar campos globais diretamente dos valores
-    if (!values.global?.technicianName?.trim()) {
+    // Verificar campos globais diretamente dos valores (só adiciona erro se realmente estiver vazio)
+    const techName = values.global?.technicianName
+    if (!techName || (typeof techName === 'string' && !techName.trim())) {
       errors.push('• Nome do técnico é obrigatório')
     }
-    if (!values.global?.originCity?.trim()) {
+    
+    const originCity = values.global?.originCity
+    if (!originCity || (typeof originCity === 'string' && !originCity.trim())) {
       errors.push('• Cidade de origem é obrigatória')
     }
-    if (!values.global?.startDateISO?.trim()) {
+    
+    const startDate = values.global?.startDateISO
+    if (!startDate || (typeof startDate === 'string' && !startDate.trim())) {
       errors.push('• Data de início é obrigatória')
     }
+    
     if (!values.global?.assetsPerDay || values.global.assetsPerDay <= 0) {
       errors.push('• Bens por dia deve ser maior que zero')
     }
+    
     if (values.global?.technicianDailyRate === undefined || values.global?.technicianDailyRate === null) {
       errors.push('• Diária do técnico deve ser preenchida (pode ser R$ 0,00)')
     }
@@ -206,61 +213,128 @@ export default function PlannerForm({ initial, plannerId, onSubmit }: PlannerFor
       errors.push('• Adicione pelo menos uma cidade ao itinerário')
     } else {
       itinerary.forEach((city: any, cityIndex: number) => {
-        if (!city.city?.trim()) {
+        const cityName = city.city
+        if (!cityName || (typeof cityName === 'string' && !cityName.trim())) {
           errors.push(`• Cidade ${cityIndex + 1}: nome da cidade é obrigatório`)
         }
         
         if (!city.stores || city.stores.length === 0) {
-          errors.push(`• Cidade "${city.city || cityIndex + 1}": adicione pelo menos uma loja/unidade`)
+          errors.push(`• Cidade "${cityName || cityIndex + 1}": adicione pelo menos uma loja/unidade`)
         } else {
           city.stores.forEach((store: any, storeIndex: number) => {
-            if (!store.name?.trim()) {
-              errors.push(`• Cidade "${city.city || cityIndex + 1}", Loja ${storeIndex + 1}: nome da loja é obrigatório`)
+            const storeName = store.name
+            const storeAddress = store.addressLine
+            const storeAssets = store.approxAssets
+            
+            // Só adiciona erro se realmente estiver vazio
+            if (!storeName || (typeof storeName === 'string' && !storeName.trim())) {
+              errors.push(`• Cidade "${cityName || cityIndex + 1}", Loja ${storeIndex + 1}: nome da loja é obrigatório`)
             }
-            if (!store.addressLine?.trim()) {
-              errors.push(`• Cidade "${city.city || cityIndex + 1}", Loja "${store.name || storeIndex + 1}": endereço é obrigatório`)
+            if (!storeAddress || (typeof storeAddress === 'string' && !storeAddress.trim())) {
+              errors.push(`• Cidade "${cityName || cityIndex + 1}", Loja "${storeName || storeIndex + 1}": endereço é obrigatório`)
             }
-            if (store.approxAssets === undefined || store.approxAssets === null || store.approxAssets <= 0) {
-              errors.push(`• Cidade "${city.city || cityIndex + 1}", Loja "${store.name || storeIndex + 1}": quantidade de bens deve ser maior que zero`)
+            if (storeAssets === undefined || storeAssets === null || storeAssets <= 0) {
+              errors.push(`• Cidade "${cityName || cityIndex + 1}", Loja "${storeName || storeIndex + 1}": quantidade de bens deve ser maior que zero`)
             }
           })
         }
       })
     }
 
-    // Também verificar erros do formulário para campos que podem ter validações mais específicas
+    // Verificar erros do Zod apenas para campos que não foram capturados pelas verificações manuais acima
+    // Isso evita duplicatas e mensagens genéricas "Required"
     if (formErrors.global) {
       Object.keys(formErrors.global).forEach((key) => {
         const error = (formErrors.global as any)[key]
-        if (error && error.message && !errors.some(e => e.includes(key))) {
-          errors.push(`• ${error.message}`)
+        // Só adiciona se realmente houver um erro e não foi capturado acima
+        if (error) {
+          const value = values.global?.[key as keyof typeof values.global]
+          // Se o valor existe e não está vazio, ignora o erro do Zod (pode ser falso positivo)
+          const isEmpty = !value || (typeof value === 'string' && !value.trim())
+          
+          if (isEmpty) {
+            // Só adiciona se não já foi adicionado nas verificações manuais
+            const errorMessage = error.message || 'campo obrigatório'
+            if (!errors.some(e => 
+              e.toLowerCase().includes(key.toLowerCase()) || 
+              e.toLowerCase().includes(errorMessage.toLowerCase())
+            )) {
+              // Formatar mensagem mais amigável
+              if (errorMessage === 'Required' || errorMessage.includes('obrigatório')) {
+                const fieldNames: Record<string, string> = {
+                  technicianName: 'Nome do técnico',
+                  originCity: 'Cidade de origem',
+                  startDateISO: 'Data de início',
+                  assetsPerDay: 'Bens por dia',
+                  technicianDailyRate: 'Diária do técnico'
+                }
+                errors.push(`• ${fieldNames[key] || key}: é obrigatório`)
+              } else {
+                errors.push(`• ${errorMessage}`)
+              }
+            }
+          }
         }
       })
     }
 
+    // Verificar erros do itinerário do Zod
     if (formErrors.itinerary) {
       const itineraryErrors = formErrors.itinerary
       if (Array.isArray(itineraryErrors)) {
         itineraryErrors.forEach((cityError: any, cityIndex: number) => {
           if (cityError) {
+            const city = values.itinerary?.[cityIndex]
+            const cityName = city?.city || `Cidade ${cityIndex + 1}`
+            
             Object.keys(cityError).forEach((key) => {
               if (key === 'stores' && cityError.stores && Array.isArray(cityError.stores)) {
                 cityError.stores.forEach((storeError: any, storeIndex: number) => {
                   if (storeError) {
+                    const store = city?.stores?.[storeIndex]
+                    const storeName = store?.name || `Loja ${storeIndex + 1}`
+                    
                     Object.keys(storeError).forEach((storeKey) => {
                       const error = storeError[storeKey]
-                      if (error && error.message) {
-                        const city = values.itinerary?.[cityIndex]?.city || `Cidade ${cityIndex + 1}`
-                        const store = values.itinerary?.[cityIndex]?.stores?.[storeIndex]?.name || `Loja ${storeIndex + 1}`
-                        errors.push(`• ${city}, ${store}: ${error.message}`)
+                      const storeValue = store?.[storeKey as keyof typeof store]
+                      const isEmpty = !storeValue || (typeof storeValue === 'string' && !storeValue.trim())
+                      
+                      // Só adiciona erro se realmente estiver vazio e não foi capturado acima
+                      if (error && isEmpty) {
+                        const errorMsg = error.message || 'campo obrigatório'
+                        // Verificar se já não foi adicionado
+                        if (!errors.some(e => 
+                          e.includes(cityName) && 
+                          e.includes(storeName) && 
+                          (e.includes(storeKey) || e.includes(errorMsg))
+                        )) {
+                          const fieldNames: Record<string, string> = {
+                            name: 'nome da loja',
+                            addressLine: 'endereço',
+                            approxAssets: 'quantidade de bens'
+                          }
+                          const fieldName = fieldNames[storeKey] || storeKey
+                          errors.push(`• ${cityName}, ${storeName}: ${fieldName} é obrigatório`)
+                        }
                       }
                     })
                   }
                 })
-              } else if (cityError[key] && typeof cityError[key] === 'object' && cityError[key].message) {
-                const city = values.itinerary?.[cityIndex]?.city || `Cidade ${cityIndex + 1}`
-                if (!errors.some(e => e.includes(city) && e.includes(key))) {
-                  errors.push(`• ${city}: ${cityError[key].message}`)
+              } else if (cityError[key] && typeof cityError[key] === 'object') {
+                const error = cityError[key]
+                const cityValue = city?.[key as keyof typeof city]
+                const isEmpty = !cityValue || (typeof cityValue === 'string' && !cityValue.trim())
+                
+                if (error.message && isEmpty) {
+                  // Verificar se já não foi adicionado
+                  if (!errors.some(e => e.includes(cityName) && e.includes(key))) {
+                    const fieldNames: Record<string, string> = {
+                      city: 'nome da cidade',
+                      stores: 'lojas'
+                    }
+                    const fieldName = fieldNames[key] || key
+                    errors.push(`• ${cityName}: ${fieldName} ${error.message.toLowerCase().includes('obrigatório') ? 'é obrigatório' : error.message}`)
+                  }
                 }
               }
             })
