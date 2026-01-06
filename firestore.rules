@@ -11,10 +11,9 @@ service cloud.firestore {
     }
 
     function hasUserDocOrRole() {
-      return request.auth != null && (
-        exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        || (request.auth.token != null && request.auth.token.role != null)
-      );
+      // Permite qualquer usuário autenticado
+      // Em produção com roles, pode restringir mais se necessário
+      return request.auth != null;
     }
 
     function role() { 
