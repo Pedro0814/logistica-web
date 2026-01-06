@@ -97,26 +97,20 @@ service cloud.firestore {
     
     match /operations/{operationId} {
 
-      allow read: if hasUserDocOrRole() && (
-        role() == null ||
-        isAdmin() ||
-        isCoord() ||
-        (isTech() && isAssignedTech(operationId))
-      );
+      // Permite leitura para qualquer usuário autenticado
+      allow read: if hasUserDocOrRole();
 
-      allow create, update, delete: if hasUserDocOrRole() && (
-        role() == null || isAdmin() || isCoord()
-      );
+      // Permite criação/atualização/exclusão para qualquer usuário autenticado
+      // Em produção, pode restringir mais (admin/coord apenas)
+      allow create, update, delete: if hasUserDocOrRole();
 
       // ---------- Planning ----------
       match /planning/{dayId} {
-        allow read: if hasUserDocOrRole() && (
-          role() == null || isAdmin() || isCoord() || (isTech() && isAssignedTech(operationId))
-        );
+        // Permite leitura para qualquer usuário autenticado
+        allow read: if hasUserDocOrRole();
 
-        allow create, update, delete: if hasUserDocOrRole() && (
-          role() == null || isAdmin() || isCoord()
-        )
+        // Permite criação/atualização/exclusão com validações
+        allow create, update, delete: if hasUserDocOrRole()
         && (request.resource.data.date == null || isISODate(request.resource.data.date))
         && arrayOfStringsMaybeEmpty(request.resource.data.techIds)
         && (request.resource.data.plannedAssets == null || isNonNegInt(request.resource.data.plannedAssets))
@@ -125,13 +119,11 @@ service cloud.firestore {
 
       // ---------- Actuals ----------
       match /actuals/{dayId} {
-        allow read: if hasUserDocOrRole() && (
-          role() == null || isAdmin() || isCoord() || (isTech() && isAssignedTech(operationId))
-        );
+        // Permite leitura para qualquer usuário autenticado
+        allow read: if hasUserDocOrRole();
 
-        allow create, update: if hasUserDocOrRole() && (
-          role() == null || isAdmin() || isCoord() || (isTech() && isAssignedTech(operationId))
-        )
+        // Permite criação/atualização com validações
+        allow create, update: if hasUserDocOrRole()
         && (request.resource.data.date == null || isISODate(request.resource.data.date))
         && arrayOfStringsMaybeEmpty(request.resource.data.techIds)
         && (request.resource.data.actualAssets == null || isNonNegInt(request.resource.data.actualAssets))
@@ -139,28 +131,28 @@ service cloud.firestore {
         && (request.resource.data.meta == null ||
             (request.resource.data.meta is map && request.resource.data.meta.filledBy == request.auth.uid));
 
-        allow delete: if hasUserDocOrRole() && (role() == null || isAdmin() || isCoord());
+        // Permite exclusão para qualquer usuário autenticado
+        allow delete: if hasUserDocOrRole();
       }
 
       // ---------- Attachments (Operations) ----------
       match /attachments/{attachmentId} {
-        allow read: if hasUserDocOrRole() && (
-          role() == null || isAdmin() || isCoord() || (isTech() && isAssignedTech(operationId))
-        );
+        // Permite leitura para qualquer usuário autenticado
+        // Em produção, pode restringir mais se necessário
+        allow read: if hasUserDocOrRole();
 
-        allow create: if hasUserDocOrRole() && (
-          role() == null || isAdmin() || isCoord() || (isTech() && isAssignedTech(operationId))
-        )
+        // Permite criação para qualquer usuário autenticado com validações
+        allow create: if hasUserDocOrRole()
         && request.resource.data.url is string
         && request.resource.data.publicId is string
         && request.resource.data.uploadedAt != null;
 
+        // Permite update/delete para admin, coord, ou quem fez upload
         allow update, delete: if hasUserDocOrRole() && (
           role() == null ||
           isAdmin() ||
           isCoord() ||
-          (isTech() && isAssignedTech(operationId) &&
-            resource.data.uploadedBy == request.auth.uid)
+          resource.data.uploadedBy == request.auth.uid
         );
       }
 
