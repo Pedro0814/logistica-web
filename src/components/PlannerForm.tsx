@@ -239,31 +239,34 @@ export default function PlannerForm({ initial, plannerId, onSubmit }: PlannerFor
     }
 
     if (formErrors.itinerary) {
-      formErrors.itinerary.forEach((cityError: any, cityIndex: number) => {
-        if (cityError) {
-          Object.keys(cityError).forEach((key) => {
-            if (key === 'stores' && cityError.stores) {
-              cityError.stores.forEach((storeError: any, storeIndex: number) => {
-                if (storeError) {
-                  Object.keys(storeError).forEach((storeKey) => {
-                    const error = storeError[storeKey]
-                    if (error && error.message) {
-                      const city = values.itinerary?.[cityIndex]?.city || `Cidade ${cityIndex + 1}`
-                      const store = values.itinerary?.[cityIndex]?.stores?.[storeIndex]?.name || `Loja ${storeIndex + 1}`
-                      errors.push(`• ${city}, ${store}: ${error.message}`)
-                    }
-                  })
+      const itineraryErrors = formErrors.itinerary
+      if (Array.isArray(itineraryErrors)) {
+        itineraryErrors.forEach((cityError: any, cityIndex: number) => {
+          if (cityError) {
+            Object.keys(cityError).forEach((key) => {
+              if (key === 'stores' && cityError.stores && Array.isArray(cityError.stores)) {
+                cityError.stores.forEach((storeError: any, storeIndex: number) => {
+                  if (storeError) {
+                    Object.keys(storeError).forEach((storeKey) => {
+                      const error = storeError[storeKey]
+                      if (error && error.message) {
+                        const city = values.itinerary?.[cityIndex]?.city || `Cidade ${cityIndex + 1}`
+                        const store = values.itinerary?.[cityIndex]?.stores?.[storeIndex]?.name || `Loja ${storeIndex + 1}`
+                        errors.push(`• ${city}, ${store}: ${error.message}`)
+                      }
+                    })
+                  }
+                })
+              } else if (cityError[key] && typeof cityError[key] === 'object' && cityError[key].message) {
+                const city = values.itinerary?.[cityIndex]?.city || `Cidade ${cityIndex + 1}`
+                if (!errors.some(e => e.includes(city) && e.includes(key))) {
+                  errors.push(`• ${city}: ${cityError[key].message}`)
                 }
-              })
-            } else if (cityError[key] && cityError[key].message) {
-              const city = values.itinerary?.[cityIndex]?.city || `Cidade ${cityIndex + 1}`
-              if (!errors.some(e => e.includes(city) && e.includes(key))) {
-                errors.push(`• ${city}: ${cityError[key].message}`)
               }
-            }
-          })
-        }
-      })
+            })
+          }
+        })
+      }
     }
 
     // Remover duplicatas
