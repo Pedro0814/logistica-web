@@ -38,7 +38,7 @@ export default function FieldAttachments({ plannerId, fieldType, className = "" 
     } finally {
       setLoading(false)
     }
-  }, [plannerId, fieldType, getAttachments])
+  }, [plannerId, fieldType])
 
   useEffect(() => {
     if (plannerId) {

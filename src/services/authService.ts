@@ -42,3 +42,5 @@ export function getCurrentUser(): AuthUser {
   return auth?.currentUser ?? null
 }
 
+
+

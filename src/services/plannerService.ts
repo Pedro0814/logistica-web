@@ -10,14 +10,17 @@ import {
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 
-type PlannerPayload = {
+export interface Planner {
   id: string
   title?: string
   data: any
-  userId?: string | null
-  createdAt?: any
-  updatedAt?: any
+  ownerUid?: string | null
+  createdAt?: string | null
+  updatedAt?: string | null
+  estimatedDays?: number
 }
+
+export type PlannerPayload = Partial<Omit<Planner, 'id'>>
 
 type Mode = 'firestore' | 'mock'
 
@@ -42,35 +45,35 @@ const mode: Mode = (() => {
 })()
 
 // mock store em memória (não persistente)
-const mockStore = new Map<string, PlannerPayload>()
+const mockStore = new Map<string, Planner>()
 
 function nowISO() {
   return new Date().toISOString()
 }
 
-export async function listPlanners(): Promise<PlannerPayload[]> {
+export async function listPlanners(): Promise<Planner[]> {
   if (mode === 'mock') {
     return Array.from(mockStore.values())
   }
   const snap = await getDocs(collection(db, 'plans'))
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as PlannerPayload))
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Planner))
 }
 
-export async function getPlanner(id: string): Promise<PlannerPayload | null> {
+export async function getPlanner(id: string): Promise<Planner | null> {
   if (mode === 'mock') return mockStore.get(id) || null
   const ref = doc(db, 'plans', id)
   const snap = await getDoc(ref)
-  return snap.exists() ? ({ id: snap.id, ...snap.data() } as PlannerPayload) : null
+  return snap.exists() ? ({ id: snap.id, ...snap.data() } as Planner) : null
 }
 
-export async function savePlanner(data: any, opts: { title?: string; userId?: string | null } = {}) {
+export async function savePlanner(data: any, opts: { title?: string; ownerUid?: string | null } = {}) {
   const id = crypto.randomUUID()
   if (mode === 'mock') {
     mockStore.set(id, {
       id,
       title: opts.title || 'Planejamento',
       data,
-      userId: opts.userId || null,
+      ownerUid: opts.ownerUid || null,
       createdAt: nowISO(),
       updatedAt: nowISO(),
     })
@@ -80,7 +83,7 @@ export async function savePlanner(data: any, opts: { title?: string; userId?: st
   await setDoc(ref, {
     title: opts.title || 'Planejamento',
     data,
-    userId: opts.userId || null,
+    ownerUid: opts.ownerUid || null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   })

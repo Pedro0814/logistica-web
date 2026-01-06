@@ -159,11 +159,20 @@ export const unitsCol = () => collection(db, 'units').withConverter(unitConverte
 export const unitDoc = (unitId: string) => doc(db, 'units', unitId).withConverter(unitConverter)
 
 export const assignmentsCol = (operationId: string) => collection(db, `operations/${operationId}/assignments`).withConverter(assignmentConverter)
-export const planningCol = (operationId: string) => collection(db, `operations/${operationId}/planning`).withConverter(planningDayConverter)
-export const actualsCol = (operationId: string) => collection(db, `operations/${operationId}/actuals`).withConverter(actualDayConverter)
-export const attachmentsCol = (operationId: string) => collection(db, `operations/${operationId}/attachments`).withConverter(attachmentConverter)
+export const planningCol = (operationId: string) =>
+  collection(db, `operations/${operationId}/planning`).withConverter(planningDayConverter)
 
-export const weekendPoliciesCol = () => collection(db, 'weekendPolicies').withConverter(weekendPolicyConverter)
-export const weekendPolicyDoc = (policyId: string) => doc(db, 'weekendPolicies', policyId).withConverter(weekendPolicyConverter)
+export const actualsCol = (operationId: string) =>
+  collection(db, `operations/${operationId}/actuals`).withConverter(actualDayConverter)
+
+// If you need attachments, be sure to define and import attachmentConverter first.
+// export const attachmentsCol = (operationId: string) =>
+//   collection(db, `operations/${operationId}/attachments`).withConverter(attachmentConverter)
+
+export const weekendPoliciesCol = () =>
+  collection(db, 'weekendPolicies').withConverter(weekendPolicyConverter)
+
+export const weekendPolicyDoc = (policyId: string) =>
+  doc(db, 'weekendPolicies', policyId).withConverter(weekendPolicyConverter)
 
 

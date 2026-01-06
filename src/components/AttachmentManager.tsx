@@ -189,8 +189,12 @@ export default function AttachmentManager({ planId, readOnly = false }: Attachme
     loadAttachments();
   }, [loadAttachments]);
 
-  const isImage = (format: string) => ['jpg', 'jpeg', 'png', 'webp'].includes(format.toLowerCase());
-  const isPdf = (format: string) => format.toLowerCase() === 'pdf';
+  function isImage(mime?: string) {
+    return typeof mime === 'string' && mime.startsWith('image/');
+  }
+
+  const isPdf = (mime?: string) =>
+    typeof mime === 'string' && mime.toLowerCase().startsWith('application/pdf');
 
   return (
     <div className="w-full border rounded-xl bg-white">
@@ -283,68 +287,83 @@ export default function AttachmentManager({ planId, readOnly = false }: Attachme
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {attachments.map((attachment) => (
-              <div key={attachment.id} className="border rounded-lg p-3 space-y-2">
-                {/* Preview */}
-                <div className="aspect-video bg-gray-100 rounded overflow-hidden relative">
-                  {isImage(attachment.format) ? (
-                    <Image
-                      src={attachment.thumbUrl}
-                      alt={attachment.originalFilename || 'preview'}
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                    />
-                  ) : isPdf(attachment.format) ? (
-                    <div className="w-full h-full flex items-center justify-center">
+            {attachments.map((attachmentBase) => {
+              const attachment = attachmentBase as AttachmentRecord & {
+                thumbUrl?: string;
+                secureUrl?: string;
+                originalFilename?: string;
+              };
+
+              const thumbUrl = attachment.thumbUrl || attachment.url;
+              const displayUrl = attachment.secureUrl || attachment.url;
+              const extensionLabel =
+                typeof attachment.mime === 'string'
+                  ? (attachment.mime.split('/')[1] || attachment.mime).toUpperCase()
+                  : 'ARQUIVO';
+
+              return (
+                <div key={attachment.id} className="border rounded-lg p-3 space-y-2">
+                  {/* Preview */}
+                  <div className="aspect-video bg-gray-100 rounded overflow-hidden relative">
+                    {isImage(attachment.mime) ? (
                       <Image
-                        src={attachment.thumbUrl}
-                        alt="PDF preview"
+                        src={thumbUrl}
+                        alt={attachment.originalFilename || 'preview'}
                         fill
                         className="object-cover"
                         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                       />
-                    </div>
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <div className="text-center">
-                        <div className="text-2xl mb-1">📄</div>
-                        <div className="text-xs text-gray-500">{attachment.format.toUpperCase()}</div>
+                    ) : isPdf(attachment.mime) ? (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Image
+                          src={thumbUrl}
+                          alt="PDF preview"
+                          fill
+                          className="object-cover"
+                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        />
                       </div>
-                    </div>
-                  )}
-                </div>
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <div className="text-center">
+                          <div className="text-2xl mb-1">📄</div>
+                          <div className="text-xs text-gray-500">{extensionLabel}</div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
-                {/* Info */}
-                <div className="space-y-1">
-                  <p className="text-sm font-medium truncate" title={attachment.originalFilename}>
-                    {attachment.originalFilename}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {formatFileSize(attachment.bytes)}
-                  </p>
-                </div>
+                  {/* Info */}
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium truncate" title={attachment.originalFilename}>
+                      {attachment.originalFilename}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {formatFileSize(attachment.bytes)}
+                    </p>
+                  </div>
 
-                {/* Actions */}
-                <div className="flex gap-2">
-                  <button
-                    className="flex-1 inline-flex items-center justify-center px-3 py-2 rounded border bg-white hover:bg-gray-50 text-sm"
-                    onClick={() => window.open(attachment.secureUrl, '_blank')}
-                  >
-                    {isPdf(attachment.format) ? 'Abrir' : 'Ver'}
-                  </button>
-                  
-                  {!readOnly && (
+                  {/* Actions */}
+                  <div className="flex gap-2">
                     <button
-                      className="inline-flex items-center justify-center px-3 py-2 rounded bg-red-600 hover:bg-red-700 text-white text-sm"
-                      onClick={() => handleRemoveAttachment(attachment)}
+                      className="flex-1 inline-flex items-center justify-center px-3 py-2 rounded border bg-white hover:bg-gray-50 text-sm"
+                      onClick={() => window.open(displayUrl, '_blank')}
                     >
-                      Remover
+                      {isPdf(attachment.mime) ? 'Abrir' : 'Ver'}
                     </button>
-                  )}
+                    
+                    {!readOnly && (
+                      <button
+                        className="inline-flex items-center justify-center px-3 py-2 rounded bg-red-600 hover:bg-red-700 text-white text-sm"
+                        onClick={() => handleRemoveAttachment(attachment)}
+                      >
+                        Remover
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

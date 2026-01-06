@@ -44,8 +44,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Plano não encontrado' }, { status: 404 });
     }
 
-    const planData = planDoc.data() as { ownerUid?: string } | undefined;
-    if (!planData || planData.ownerUid !== uid) {
+    const planData = planDoc.data() as { ownerUid?: string; userId?: string } | undefined;
+    // Aceita tanto ownerUid quanto userId (compatibilidade durante migração)
+    const ownerId = planData?.ownerUid || planData?.userId;
+    if (!planData || !ownerId || ownerId !== uid) {
       return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
     }
 

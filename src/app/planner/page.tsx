@@ -63,7 +63,7 @@ function PlannerPageContent() {
       setSaveError(null)
       const plannerId = await savePlannerService(values, {
         title,
-        userId: user?.uid || null,
+        ownerUid: user?.uid || null,
       })
       setCurrentPlannerId(plannerId) // Armazenar o ID para anexos
       alert(`Planejamento "${title}" salvo com sucesso! ID: ${plannerId}`)

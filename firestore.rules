@@ -1,18 +1,251 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // ============================================
+    // HELPERS DE AUTENTICAÇÃO E ROLES
+    // ============================================
+    
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // Planejamentos (plannerService)
-    match /plans/{planId} {
-      allow read, write: if isSignedIn();
+    function hasUserDocOrRole() {
+      return request.auth != null && (
+        exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        || (request.auth.token != null && request.auth.token.role != null)
+      );
     }
 
-    // Metadados de anexos por operação (attachmentService)
-    match /operations/{operationId}/attachments/{attachmentId} {
-      allow read, write: if isSignedIn();
+    function role() { 
+      return request.auth.token != null ? request.auth.token.role : null; 
+    }
+
+    function isAdmin() { return role() == 'admin'; }
+    function isCoord() { return role() == 'coord'; }
+    function isTech()  { return role() == 'tech'; }
+
+    // ============================================
+    // HELPERS DE VALIDAÇÃO
+    // ============================================
+    
+    function isISODate(s) {
+      return s is string && s.size() == 10 && s.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+    }
+
+    function isNonNegInt(n) { 
+      return n is int && n >= 0; 
+    }
+
+    function validMoney(obj) {
+      return obj == null || (
+        obj is map
+        && isNonNegInt(obj.ticketsCents)
+        && isNonNegInt(obj.transportLocalCents)
+        && isNonNegInt(obj.hotelCents)
+        && isNonNegInt(obj.foodCents)
+        && isNonNegInt(obj.hydrationCents)
+        && isNonNegInt(obj.allowanceExtraCents)
+      );
+    }
+
+    function arrayOfStringsMaybeEmpty(a) {
+      return a == null || (a is list && a.size() >= 0 && a.size() <= 20);
+    }
+
+    function isAssignedTech(opId) {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/operations/$(opId)/assignments/$(request.auth.uid));
+    }
+
+    // Helper para verificar se o usuário é dono do plano (compatibilidade com userId legado)
+    function isPlanOwner(planId) {
+      let planDoc = get(/databases/$(database)/documents/plans/$(planId));
+      let ownerUid = planDoc.data.ownerUid != null ? planDoc.data.ownerUid : planDoc.data.userId;
+      return ownerUid != null && ownerUid == request.auth.uid;
+    }
+
+    // ============================================
+    // USERS
+    // ============================================
+    
+    match /users/{userId} {
+      allow read: if hasUserDocOrRole() && (
+        role() == null || 
+        isAdmin() || 
+        isCoord() || 
+        userId == request.auth.uid
+      );
+      
+      allow create: if hasUserDocOrRole() && (
+        role() == null || 
+        isAdmin() || 
+        userId == request.auth.uid
+      );
+      
+      allow update: if hasUserDocOrRole() && (
+        role() == null || 
+        isAdmin() || 
+        (userId == request.auth.uid && request.resource.data.uid == userId)
+      );
+      
+      allow delete: if hasUserDocOrRole() && (role() == null || isAdmin());
+    }
+
+    // ============================================
+    // OPERATIONS
+    // ============================================
+    
+    match /operations/{operationId} {
+
+      allow read: if hasUserDocOrRole() && (
+        role() == null ||
+        isAdmin() ||
+        isCoord() ||
+        (isTech() && isAssignedTech(operationId))
+      );
+
+      allow create, update, delete: if hasUserDocOrRole() && (
+        role() == null || isAdmin() || isCoord()
+      );
+
+      // ---------- Planning ----------
+      match /planning/{dayId} {
+        allow read: if hasUserDocOrRole() && (
+          role() == null || isAdmin() || isCoord() || (isTech() && isAssignedTech(operationId))
+        );
+
+        allow create, update, delete: if hasUserDocOrRole() && (
+          role() == null || isAdmin() || isCoord()
+        )
+        && (request.resource.data.date == null || isISODate(request.resource.data.date))
+        && arrayOfStringsMaybeEmpty(request.resource.data.techIds)
+        && (request.resource.data.plannedAssets == null || isNonNegInt(request.resource.data.plannedAssets))
+        && validMoney(request.resource.data.plannedCosts);
+      }
+
+      // ---------- Actuals ----------
+      match /actuals/{dayId} {
+        allow read: if hasUserDocOrRole() && (
+          role() == null || isAdmin() || isCoord() || (isTech() && isAssignedTech(operationId))
+        );
+
+        allow create, update: if hasUserDocOrRole() && (
+          role() == null || isAdmin() || isCoord() || (isTech() && isAssignedTech(operationId))
+        )
+        && (request.resource.data.date == null || isISODate(request.resource.data.date))
+        && arrayOfStringsMaybeEmpty(request.resource.data.techIds)
+        && (request.resource.data.actualAssets == null || isNonNegInt(request.resource.data.actualAssets))
+        && validMoney(request.resource.data.actualCosts)
+        && (request.resource.data.meta == null ||
+            (request.resource.data.meta is map && request.resource.data.meta.filledBy == request.auth.uid));
+
+        allow delete: if hasUserDocOrRole() && (role() == null || isAdmin() || isCoord());
+      }
+
+      // ---------- Attachments (Operations) ----------
+      match /attachments/{attachmentId} {
+        allow read: if hasUserDocOrRole() && (
+          role() == null || isAdmin() || isCoord() || (isTech() && isAssignedTech(operationId))
+        );
+
+        allow create: if hasUserDocOrRole() && (
+          role() == null || isAdmin() || isCoord() || (isTech() && isAssignedTech(operationId))
+        )
+        && request.resource.data.url is string
+        && request.resource.data.publicId is string
+        && request.resource.data.uploadedAt != null;
+
+        allow update, delete: if hasUserDocOrRole() && (
+          role() == null ||
+          isAdmin() ||
+          isCoord() ||
+          (isTech() && isAssignedTech(operationId) &&
+            resource.data.uploadedBy == request.auth.uid)
+        );
+      }
+
+      // ---------- Assignments ----------
+      match /assignments/{assignmentId} {
+        allow read: if hasUserDocOrRole();
+        allow create, update, delete: if hasUserDocOrRole() && (role() == null || isAdmin() || isCoord());
+      }
+
+      // ---------- Comments ----------
+      match /comments/{commentId} {
+        allow read, create: if hasUserDocOrRole();
+        allow update, delete: if hasUserDocOrRole() && (
+          role() == null || isAdmin() || isCoord() ||
+          resource.data.author == request.auth.uid
+        );
+      }
+    }
+
+    // ============================================
+    // TECHNICIANS
+    // ============================================
+    
+    match /technicians/{techId} {
+      allow read: if hasUserDocOrRole() && (role() == null || isAdmin() || isCoord());
+      allow create, update, delete: if hasUserDocOrRole() && (role() == null || isAdmin());
+    }
+
+    // ============================================
+    // UNITS
+    // ============================================
+    
+    match /units/{unitId} {
+      allow read: if hasUserDocOrRole();
+      allow create, update, delete: if hasUserDocOrRole() && (role() == null || isAdmin() || isCoord());
+    }
+
+    // ============================================
+    // WEEKEND POLICIES
+    // ============================================
+    
+    match /weekendPolicies/{policyId} {
+      allow read: if hasUserDocOrRole();
+      allow create, update: if hasUserDocOrRole() && (role() == null || isAdmin() || isCoord());
+      allow delete: if hasUserDocOrRole() && (role() == null || isAdmin());
+    }
+
+    // ============================================
+    // PLANS (Planners)
+    // ============================================
+    
+    match /plans/{planId} {
+      allow read: if hasUserDocOrRole();
+
+      allow create: if hasUserDocOrRole();
+
+      // Permite update/delete apenas para dono, admin ou coord
+      // Compatibilidade: aceita ownerUid (padrão) ou userId (legado)
+      allow update, delete: if hasUserDocOrRole() && (
+        role() == null ||
+        isAdmin() ||
+        isCoord() ||
+        (resource.data.ownerUid != null && resource.data.ownerUid == request.auth.uid) ||
+        (resource.data.userId != null && resource.data.userId == request.auth.uid)
+      );
+
+      // ---------- Planner Attachments ----------
+      match /attachments/{attachmentId} {
+        allow read: if hasUserDocOrRole();
+
+        allow create: if hasUserDocOrRole()
+        && request.resource.data.url is string
+        && request.resource.data.publicId is string
+        && request.resource.data.uploadedAt != null;
+
+        // Permite update/delete se é dono do plano pai, admin, coord ou quem fez upload
+        allow update, delete: if hasUserDocOrRole() && (
+          role() == null ||
+          isAdmin() ||
+          isCoord() ||
+          isPlanOwner(planId) ||
+          resource.data.uploadedBy == request.auth.uid
+        );
+      }
     }
   }
 }
